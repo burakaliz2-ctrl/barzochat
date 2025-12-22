@@ -1,127 +1,145 @@
 :root {
-    --bg-color: #0b141a;
-    --chat-bg: #0b141a;
-    --my-msg: #005c4b;
-    --other-msg: #202c33;
-    --text-main: #e9edef;
-    --text-muted: #8696a0;
-    --accent: #00a884;
-    --header-bg: #202c33;
-    --input-bg: #2a3942;
+    --bg-main: #0a0a0c;
+    --sidebar-bg: #141418;
+    --accent-color: #7226fa; /* Mor tonlarında modern bir renk */
+    --msg-other: #1f1f23;
+    --msg-own: linear-gradient(135deg, #7226fa, #4b10b3);
+    --text-primary: #ffffff;
+    --text-dim: #a1a1aa;
 }
 
 body { 
-    font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
-    background: var(--bg-color); 
-    color: var(--text-main); 
+    font-family: 'Inter', -apple-system, sans-serif; 
+    background: var(--bg-main); 
+    color: var(--text-primary); 
     margin: 0; 
     display: flex; 
-    flex-direction: column; 
     height: 100vh; 
-    overflow: hidden;
 }
 
-/* Üst Bilgi Çubuğu */
-header { 
-    background: var(--header-bg); 
-    padding: 10px 20px; 
-    font-weight: bold; 
-    font-size: 1.1rem; 
-    display: flex; 
-    justify-content: space-between; 
+/* Sol Panel (Opsiyonel Alan) */
+.sidebar {
+    width: 60px;
+    background: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    z-index: 10;
+    padding: 20px 0;
+    border-right: 1px solid #27272a;
 }
 
-#status { font-size: 0.75rem; color: var(--accent); margin-left: 8px; }
+/* Ana Chat Alanı */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
 
-/* Mesaj Alanı */
+header { 
+    padding: 15px 25px; 
+    background: rgba(20, 20, 24, 0.8);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid #27272a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 #chat { 
     flex: 1; 
     overflow-y: auto; 
-    padding: 20px; 
+    padding: 30px; 
     display: flex; 
     flex-direction: column; 
-    gap: 4px;
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-    background-blend-mode: overlay;
-    background-attachment: fixed;
+    gap: 15px;
+    background: radial-gradient(circle at center, #111115 0%, #0a0a0c 100%);
 }
 
-/* Mesaj Balonları */
+/* Mesaj Balonları - WhatsApp'tan Farklı Stil */
 .msg { 
-    padding: 8px 12px; 
-    border-radius: 8px; 
-    max-width: 75%; 
-    word-wrap: break-word; 
+    padding: 12px 18px; 
+    border-radius: 18px; 
+    max-width: 65%; 
+    font-size: 0.95rem;
+    line-height: 1.5;
     position: relative;
-    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
-    margin-bottom: 2px;
-    animation: fadeIn 0.3s ease;
+    transition: all 0.2s ease;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+.other { 
+    background: var(--msg-other); 
+    align-self: flex-start; 
+    border-bottom-left-radius: 4px;
+    color: #e4e4e7;
 }
 
-.own { background: var(--my-msg); align-self: flex-end; border-top-right-radius: 0; }
-.other { background: var(--other-msg); align-self: flex-start; border-top-left-radius: 0; }
+.own { 
+    background: var(--msg-own); 
+    align-self: flex-end; 
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 15px rgba(114, 38, 250, 0.3);
+}
 
-.user-name { font-size: 0.75rem; color: #ffbc38; font-weight: bold; display: block; margin-bottom: 2px; }
-.msg-text { font-size: 0.95rem; line-height: 1.5; }
+.user-tag {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    display: block;
+    font-weight: 800;
+    color: var(--accent-color);
+}
 
 .time { 
     font-size: 0.65rem; 
-    color: var(--text-muted); 
-    float: right; 
-    margin-top: 5px; 
-    margin-left: 8px; 
+    opacity: 0.5;
+    margin-top: 5px;
+    display: block;
+    text-align: right;
 }
 
-/* Giriş Alanı */
-#input-container { 
+/* Input Alanı */
+.input-wrapper {
+    padding: 20px 30px;
+    background: var(--bg-main);
+}
+
+.input-container { 
     display: flex; 
-    padding: 10px 15px; 
-    background: var(--header-bg); 
-    align-items: center; 
-    gap: 10px; 
+    background: #18181b; 
+    padding: 8px 15px; 
+    border-radius: 12px; 
+    border: 1px solid #27272a;
+    align-items: center;
 }
 
 input { 
     flex: 1; 
-    padding: 12px 15px; 
-    border-radius: 25px; 
-    border: none; 
-    background: var(--input-bg); 
-    color: white; 
-    outline: none; 
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 10px;
+    outline: none;
     font-size: 1rem;
 }
 
 button#send-btn { 
-    background: var(--accent); 
-    border: none; 
-    width: 45px; 
-    height: 45px; 
-    border-radius: 50%; 
-    color: white; 
-    cursor: pointer; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    transition: transform 0.1s;
+    background: var(--accent-color); 
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
 }
 
-button#send-btn:active { transform: scale(0.9); }
-
-#notify-btn { 
-    font-size: 0.7rem; 
-    background: transparent; 
-    border: 1px solid var(--accent); 
-    color: var(--accent); 
-    padding: 5px 10px; 
-    border-radius: 5px; 
-    cursor: pointer; 
+#notify-btn {
+    background: #27272a;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
 }

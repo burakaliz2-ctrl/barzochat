@@ -3,35 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Pro v2</title>
-    <link rel="stylesheet" href="style.css"> <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <title>Nexus Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body>
-    <header>
-        <div>Anlık Sohbet <span id="status">● Çevrimiçi</span></div>
-        <button id="notify-btn" onclick="requestNotify()">Bildirimleri Aç</button>
-    </header>
-
-    <div id="chat"></div>
-    
-    <div id="input-container">
-        <input type="text" id="msgInput" placeholder="Mesaj yazın..." onkeypress="if(event.key==='Enter') sendMessage()">
-        <button id="send-btn" onclick="sendMessage()">➤</button>
+    <div class="sidebar">
+        <div style="width: 35px; height: 35px; background: #7226fa; border-radius: 10px;"></div>
     </div>
 
-    <audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"></audio>
+    <div class="main-content">
+        <header>
+            <div><strong>NEXUS</strong> <span id="status">● SİSTEM AKTİF</span></div>
+            <button id="notify-btn" onclick="initNotifications()">Sistemi Aktifleştir (Ses/Bildirim)</button>
+        </header>
+
+        <div id="chat"></div>
+        
+        <div class="input-wrapper">
+            <div class="input-container">
+                <input type="text" id="msgInput" placeholder="Mesajını buraya bırak..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <button id="send-btn" onclick="sendMessage()">GÖNDER</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="notifSound" preload="auto">
+        <source src="https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3" type="audio/mpeg">
+    </audio>
 
     <script>
         let userName = localStorage.getItem('chatUser');
         if (!userName) {
-            userName = prompt("Adın nedir?") || "Misafir";
+            userName = prompt("Sistem ismi:") || "User_" + Math.floor(Math.random()*1000);
             localStorage.setItem('chatUser', userName);
         }
 
-        function requestNotify() {
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") document.getElementById('notify-btn').style.display = 'none';
-            });
+        // SES VE BİLDİRİM AKTİFLEŞTİRME
+        function initNotifications() {
+            // 1. Bildirim İzni
+            Notification.requestPermission();
+            
+            // 2. Ses Kilidini Açma (User Gesture)
+            const audio = document.getElementById('notifSound');
+            audio.play().then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+            }).catch(e => console.log("Ses henüz hazır değil"));
+
+            document.getElementById('notify-btn').innerText = "SİSTEM HAZIR";
+            document.getElementById('notify-btn').style.opacity = "0.5";
         }
 
         const pusher = new Pusher('7c829d72a0184ee33bb3', { cluster: 'eu' });
@@ -45,18 +67,24 @@
             const msgDiv = document.createElement('div');
             msgDiv.className = `msg ${isOwn ? 'own' : 'other'}`;
             msgDiv.innerHTML = `
-                ${!isOwn ? `<span class="user-name">${data.user}</span>` : ''}
-                <span class="msg-text">${data.text}</span>
+                ${!isOwn ? `<span class="user-tag">${data.user}</span>` : ''}
+                <div class="msg-text">${data.text}</div>
                 <span class="time">${timeStr}</span>
             `;
             
             chatDiv.appendChild(msgDiv);
-            chatDiv.scrollTop = chatDiv.scrollHeight;
+            chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
 
+            // Ses ve Bildirim Tetikleme
             if (!isOwn) {
-                document.getElementById('notifSound').play().catch(() => {});
+                const audio = document.getElementById('notifSound');
+                audio.play().catch(err => console.log("Ses çalma hatası: Butona basmalısınız."));
+
                 if (document.hidden && Notification.permission === "granted") {
-                    new Notification(data.user, { body: data.text });
+                    new Notification("Yeni Mesaj: " + data.user, { 
+                        body: data.text,
+                        icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
+                    });
                 }
             }
         });

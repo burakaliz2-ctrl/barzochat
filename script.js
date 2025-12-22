@@ -76,27 +76,31 @@ function initPusher() {
     });
 
     // Online Listesi ve Sayaç Güncelleme
-    const updateUI = () => {
-        const listDiv = document.getElementById('user-list');
-        if(!listDiv) return;
+// script.js içindeki initPusher fonksiyonunun içindeki updateUI kısmını bununla değiştir:
+const updateUI = () => {
+    const listDiv = document.getElementById('user-list');
+    if(!listDiv) return;
 
-        listDiv.innerHTML = `
-            <div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">
-                <span class="status-dot online"></span> 🌍 Genel Mevzu
-            </div>`;
+    listDiv.innerHTML = `
+        <div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">
+            <span class="status-dot online"></span> 🌍 Genel Mevzu
+        </div>`;
+    
+    presenceChannel.members.each(member => {
+        // member.id artık sayı değil, senin 'username' değerin olacak
+        const displayName = member.id; 
         
-        presenceChannel.members.each(member => {
-            if (member.id !== loggedInUser) {
-                listDiv.insertAdjacentHTML('beforeend', `
-                    <div class="user-item ${activeChat === member.id ? 'active' : ''}" onclick="switchChat('${member.id}')">
-                        <span class="status-dot online"></span> ${member.id}
-                    </div>`);
-            }
-        });
-        
-        const counter = document.getElementById('online-counter');
-        if(counter) counter.innerText = presenceChannel.members.count;
-    };
+        if (displayName !== loggedInUser) {
+            listDiv.insertAdjacentHTML('beforeend', `
+                <div class="user-item ${activeChat === displayName ? 'active' : ''}" onclick="switchChat('${displayName}')">
+                    <span class="status-dot online"></span> ${displayName}
+                </div>`);
+        }
+    });
+    
+    const counter = document.getElementById('online-counter');
+    if(counter) counter.innerText = presenceChannel.members.count;
+};
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
     presenceChannel.bind('pusher:member_added', updateUI);

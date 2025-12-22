@@ -1,0 +1,127 @@
+:root {
+    --bg-color: #0b141a;
+    --chat-bg: #0b141a;
+    --my-msg: #005c4b;
+    --other-msg: #202c33;
+    --text-main: #e9edef;
+    --text-muted: #8696a0;
+    --accent: #00a884;
+    --header-bg: #202c33;
+    --input-bg: #2a3942;
+}
+
+body { 
+    font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
+    background: var(--bg-color); 
+    color: var(--text-main); 
+    margin: 0; 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh; 
+    overflow: hidden;
+}
+
+/* Üst Bilgi Çubuğu */
+header { 
+    background: var(--header-bg); 
+    padding: 10px 20px; 
+    font-weight: bold; 
+    font-size: 1.1rem; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+#status { font-size: 0.75rem; color: var(--accent); margin-left: 8px; }
+
+/* Mesaj Alanı */
+#chat { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 20px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px;
+    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+    background-blend-mode: overlay;
+    background-attachment: fixed;
+}
+
+/* Mesaj Balonları */
+.msg { 
+    padding: 8px 12px; 
+    border-radius: 8px; 
+    max-width: 75%; 
+    word-wrap: break-word; 
+    position: relative;
+    box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+    margin-bottom: 2px;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.own { background: var(--my-msg); align-self: flex-end; border-top-right-radius: 0; }
+.other { background: var(--other-msg); align-self: flex-start; border-top-left-radius: 0; }
+
+.user-name { font-size: 0.75rem; color: #ffbc38; font-weight: bold; display: block; margin-bottom: 2px; }
+.msg-text { font-size: 0.95rem; line-height: 1.5; }
+
+.time { 
+    font-size: 0.65rem; 
+    color: var(--text-muted); 
+    float: right; 
+    margin-top: 5px; 
+    margin-left: 8px; 
+}
+
+/* Giriş Alanı */
+#input-container { 
+    display: flex; 
+    padding: 10px 15px; 
+    background: var(--header-bg); 
+    align-items: center; 
+    gap: 10px; 
+}
+
+input { 
+    flex: 1; 
+    padding: 12px 15px; 
+    border-radius: 25px; 
+    border: none; 
+    background: var(--input-bg); 
+    color: white; 
+    outline: none; 
+    font-size: 1rem;
+}
+
+button#send-btn { 
+    background: var(--accent); 
+    border: none; 
+    width: 45px; 
+    height: 45px; 
+    border-radius: 50%; 
+    color: white; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    transition: transform 0.1s;
+}
+
+button#send-btn:active { transform: scale(0.9); }
+
+#notify-btn { 
+    font-size: 0.7rem; 
+    background: transparent; 
+    border: 1px solid var(--accent); 
+    color: var(--accent); 
+    padding: 5px 10px; 
+    border-radius: 5px; 
+    cursor: pointer; 
+}

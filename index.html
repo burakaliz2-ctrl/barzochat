@@ -3,63 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anlık Mesajlaşma</title>
-    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-        #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 10px 15px; border-radius: 12px; background: #1e293b; max-width: 75%; word-wrap: break-word; line-height: 1.4; }
-        .own { background: #3b82f6; align-self: flex-end; color: white; }
-        .user-name { font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; display: block; }
-        .own .user-name { color: #e2e8f0; }
-        #input-container { display: flex; padding: 15px; background: #1e293b; border-top: 1px solid #334155; gap: 10px; }
-        input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; }
-        button { padding: 10px 20px; background: #3b82f6; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #2563eb; }
-    </style>
+    <title>Chat Pro v2</title>
+    <link rel="stylesheet" href="style.css"> <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body>
+    <header>
+        <div>Anlık Sohbet <span id="status">● Çevrimiçi</span></div>
+        <button id="notify-btn" onclick="requestNotify()">Bildirimleri Aç</button>
+    </header>
+
     <div id="chat"></div>
+    
     <div id="input-container">
-        <input type="text" id="msgInput" placeholder="Mesajınızı yazın..." onkeypress="if(event.key==='Enter') sendMessage()">
-        <button onclick="sendMessage()">Gönder</button>
+        <input type="text" id="msgInput" placeholder="Mesaj yazın..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button id="send-btn" onclick="sendMessage()">➤</button>
     </div>
 
+    <audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3"></audio>
+
     <script>
-        const userName = prompt("Sohbete katılmak için bir isim girin:") || "Misafir";
-        
-        // Pusher Başlatma
+        let userName = localStorage.getItem('chatUser');
+        if (!userName) {
+            userName = prompt("Adın nedir?") || "Misafir";
+            localStorage.setItem('chatUser', userName);
+        }
+
+        function requestNotify() {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") document.getElementById('notify-btn').style.display = 'none';
+            });
+        }
+
         const pusher = new Pusher('7c829d72a0184ee33bb3', { cluster: 'eu' });
         const channel = pusher.subscribe('chat-channel');
 
         channel.bind('new-message', function(data) {
             const chatDiv = document.getElementById('chat');
             const isOwn = data.user === userName;
-            
+            const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
             const msgDiv = document.createElement('div');
-            msgDiv.className = `msg ${isOwn ? 'own' : ''}`;
-            msgDiv.innerHTML = `<span class="user-name">${data.user}</span>${data.text}`;
+            msgDiv.className = `msg ${isOwn ? 'own' : 'other'}`;
+            msgDiv.innerHTML = `
+                ${!isOwn ? `<span class="user-name">${data.user}</span>` : ''}
+                <span class="msg-text">${data.text}</span>
+                <span class="time">${timeStr}</span>
+            `;
             
             chatDiv.appendChild(msgDiv);
             chatDiv.scrollTop = chatDiv.scrollHeight;
+
+            if (!isOwn) {
+                document.getElementById('notifSound').play().catch(() => {});
+                if (document.hidden && Notification.permission === "granted") {
+                    new Notification(data.user, { body: data.text });
+                }
+            }
         });
 
         async function sendMessage() {
             const input = document.getElementById('msgInput');
             const text = input.value.trim();
             if(!text) return;
+            input.value = '';
 
-            input.value = ''; // Inputu hemen temizle (hız hissi için)
-
-            try {
-                await fetch('/api/send-message', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user: userName, text: text })
-                });
-            } catch (err) {
-                console.error("Mesaj gönderilemedi:", err);
-            }
+            await fetch('/api/send-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user: userName, text: text })
+            });
         }
     </script>
 </body>

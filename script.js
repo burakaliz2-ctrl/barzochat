@@ -55,11 +55,16 @@ async function showChat() {
 
 // 4. PUSHER BAĞLANTISI VE DİNLEYİCİLER
 function initPusher() {
-    // Pusher kütüphanesinin yüklü olduğundan emin ol (HTML'de script tagı olmalı)
+    // Kütüphane kontrolü
+    if (typeof Pusher === 'undefined') return console.error("Pusher yüklenemedi!");
+
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
         authEndpoint: '/api/pusher-auth',
-        auth: { params: { username: loggedInUser } }
+        auth: {
+            params: { username: loggedInUser }, // Body için
+            headers: { 'x-user-id': loggedInUser } // Header için (Ekstra güvenlik)
+        }
     });
 
     presenceChannel = pusher.subscribe('presence-chat');

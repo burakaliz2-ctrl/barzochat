@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anlık Mesajlaşma</title>
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 10px 15px; border-radius: 12px; background: #1e293b; max-width: 75%; word-wrap: break-word; line-height: 1.4; }
+        .own { background: #3b82f6; align-self: flex-end; color: white; }
+        .user-name { font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; display: block; }
+        .own .user-name { color: #e2e8f0; }
+        #input-container { display: flex; padding: 15px; background: #1e293b; border-top: 1px solid #334155; gap: 10px; }
+        input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; }
+        button { padding: 10px 20px; background: #3b82f6; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div id="chat"></div>
+    <div id="input-container">
+        <input type="text" id="msgInput" placeholder="Mesajınızı yazın..." onkeypress="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()">Gönder</button>
+    </div>
+
+    <script>
+        const userName = prompt("Sohbete katılmak için bir isim girin:") || "Misafir";
+        
+        // Pusher Başlatma
+        const pusher = new Pusher('7c829d72a0184ee33bb3', { cluster: 'eu' });
+        const channel = pusher.subscribe('chat-channel');
+
+        channel.bind('new-message', function(data) {
+            const chatDiv = document.getElementById('chat');
+            const isOwn = data.user === userName;
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `msg ${isOwn ? 'own' : ''}`;
+            msgDiv.innerHTML = `<span class="user-name">${data.user}</span>${data.text}`;
+            
+            chatDiv.appendChild(msgDiv);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        });
+
+        async function sendMessage() {
+            const input = document.getElementById('msgInput');
+            const text = input.value.trim();
+            if(!text) return;
+
+            input.value = ''; // Inputu hemen temizle (hız hissi için)
+
+            try {
+                await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user: userName, text: text })
+                });
+            } catch (err) {
+                console.error("Mesaj gönderilemedi:", err);
+            }
+        }
+    </script>
+</body>
+</html>

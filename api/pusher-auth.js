@@ -5,23 +5,25 @@ const pusher = new Pusher({
 });
 
 export default function handler(req, res) {
-  // username bazen body'den bazen query'den gelebilir, ikisini de kontrol edelim
-  const { socket_id, channel_name } = req.body;
-  const username = req.body.username || req.query.username;
+    const { socket_id, channel_name } = req.body;
+    
+    // Kullanıcı adını her yerden ara: Body, Query veya Header
+    const username = req.body.username || req.query.username || req.headers['x-user-id'];
 
-  if (!username) {
-    return res.status(400).send("Username eksik!");
-  }
+    if (!username || username === "null" || username === "undefined") {
+        // Eğer hala bulunamadıysa rastgele sayı yerine hata ver ki sorunu anlayalım
+        return res.status(403).send("Kullanıcı kimliği doğrulanamadı (Username yok)");
+    }
 
-  const presenceData = {
-    user_id: username, // Sayıların yerine ismin gelmesini sağlayan satır
-    user_info: { username: username }
-  };
+    const presenceData = {
+        user_id: username, 
+        user_info: { username: username }
+    };
 
-  try {
-    const auth = pusher.authenticate(socket_id, channel_name, presenceData);
-    res.send(auth);
-  } catch (error) {
-    res.status(403).send("Auth hatası");
-  }
+    try {
+        const auth = pusher.authenticate(socket_id, channel_name, presenceData);
+        res.send(auth);
+    } catch (error) {
+        res.status(403).send("Auth hatası");
+    }
 }

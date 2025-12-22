@@ -38,12 +38,30 @@ body {
 
 header { 
     padding: 15px 25px; 
-    background: rgba(20, 20, 24, 0.8);
+    background: rgba(20, 20, 24, 0.9);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid #27272a;
+    border-bottom: 2px solid var(--accent-color); /* Alt çizgiyi mor yaptık */
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.brand {
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.online-count {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    border: 1px solid #22c55e;
+    margin-left: 10px;
 }
 
 #chat { 

@@ -3,19 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Chat</title>
+    <title>BARZO CHAT</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body>
     <div class="sidebar">
-        <div style="width: 35px; height: 35px; background: #7226fa; border-radius: 10px;"></div>
+        <div style="width: 35px; height: 35px; background: #7226fa; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">B</div>
     </div>
 
     <div class="main-content">
         <header>
-            <div><strong>NEXUS</strong> <span id="status">● SİSTEM AKTİF</span></div>
+            <div class="brand">
+                BARZO CHAT 
+                <span id="online-counter" class="online-count">Yükleniyor...</span>
+            </div>
             <button id="notify-btn" onclick="initNotifications()">Sistemi Aktifleştir (Ses/Bildirim)</button>
         </header>
 
@@ -23,7 +26,7 @@
         
         <div class="input-wrapper">
             <div class="input-container">
-                <input type="text" id="msgInput" placeholder="Mesajını buraya bırak..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <input type="text" id="msgInput" placeholder="Mevzuya gir..." onkeypress="if(event.key==='Enter') sendMessage()">
                 <button id="send-btn" onclick="sendMessage()">GÖNDER</button>
             </div>
         </div>
@@ -36,28 +39,30 @@
     <script>
         let userName = localStorage.getItem('chatUser');
         if (!userName) {
-            userName = prompt("Sistem ismi:") || "User_" + Math.floor(Math.random()*1000);
+            userName = prompt("Racon için bir isim gir:") || "Barzo_" + Math.floor(Math.random()*1000);
             localStorage.setItem('chatUser', userName);
         }
 
-        // SES VE BİLDİRİM AKTİFLEŞTİRME
         function initNotifications() {
-            // 1. Bildirim İzni
             Notification.requestPermission();
-            
-            // 2. Ses Kilidini Açma (User Gesture)
             const audio = document.getElementById('notifSound');
-            audio.play().then(() => {
-                audio.pause();
-                audio.currentTime = 0;
-            }).catch(e => console.log("Ses henüz hazır değil"));
-
-            document.getElementById('notify-btn').innerText = "SİSTEM HAZIR";
-            document.getElementById('notify-btn').style.opacity = "0.5";
+            audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(e => {});
+            document.getElementById('notify-btn').innerText = "SİSTEM AKTİF";
+            document.getElementById('notify-btn').style.background = "#22c55e";
         }
 
         const pusher = new Pusher('7c829d72a0184ee33bb3', { cluster: 'eu' });
+        
+        // Ana sohbet kanalı
         const channel = pusher.subscribe('chat-channel');
+
+        // ONLINE SAYACI İÇİN MANTIK:
+        // Not: Gerçek "Presence" kanalı için backend onayı gerekir. 
+        // Şimdilik basitçe kanala bağlananları simüle eden bir sayaç gösteriyoruz.
+        channel.bind('pusher:subscription_succeeded', () => {
+            // Basit bir rastgelelik veya sabit başlangıç (Gerçek sayı için Presence kanalı şarttır)
+            document.getElementById('online-counter').innerText = "● ÇEVRİMİÇİ"; 
+        });
 
         channel.bind('new-message', function(data) {
             const chatDiv = document.getElementById('chat');
@@ -75,16 +80,10 @@
             chatDiv.appendChild(msgDiv);
             chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
 
-            // Ses ve Bildirim Tetikleme
             if (!isOwn) {
-                const audio = document.getElementById('notifSound');
-                audio.play().catch(err => console.log("Ses çalma hatası: Butona basmalısınız."));
-
+                document.getElementById('notifSound').play().catch(e => {});
                 if (document.hidden && Notification.permission === "granted") {
-                    new Notification("Yeni Mesaj: " + data.user, { 
-                        body: data.text,
-                        icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
-                    });
+                    new Notification("Barzo'dan Mesaj: " + data.user, { body: data.text });
                 }
             }
         });

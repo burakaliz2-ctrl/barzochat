@@ -137,21 +137,39 @@ button#send-btn {
     align-items: center;
     justify-content: center;
 }
+.user-tag {
+    font-size: 0.85rem; /* Biraz daha büyük */
+    text-transform: none; 
+    letter-spacing: 0px;
+    margin-bottom: 4px;
+    display: block;
+    font-weight: 700; /* Daha kalın */
+    color: #a78bfa; /* Daha parlak bir mor/lila */
+    text-shadow: 0 0 5px rgba(0,0,0,0.5); /* Okunabilirlik için gölge */
+}
 
+/* Mesaj balonunun içindeki metin */
+.msg-text {
+    font-size: 0.95rem;
+    color: #ffffff;
+    word-break: break-word;
+}
 #notify-btn {
-    background: var(--accent-color); /* Mor renk */
-    color: white; /* Beyaz yazı */
+    background: var(--accent-color);
+    color: white;
     border: none;
     padding: 8px 16px;
     border-radius: 20px;
     cursor: pointer;
     font-size: 0.8rem;
     font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    transition: transform 0.2s, background 0.2s;
-    box-shadow: 0 4px 12px rgba(114, 38, 250, 0.3);
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+.hidden-btn {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8);
 }
 #notify-btn:active {
     transform: scale(0.95);

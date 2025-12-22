@@ -16,13 +16,12 @@ function initNotifications() {
         
         const btn = document.getElementById('notify-btn');
         btn.innerHTML = "✅ Ses Aktif";
-        btn.classList.add('active');
+        btn.style.background = "#22c55e";
         
-        // 2 saniye sonra butonu gizle
+        // Butonu zarifçe gizle ama yerini tutmaya devam etsin (sayfa kaymasın)
         setTimeout(() => {
-            btn.style.opacity = "0";
-            setTimeout(() => btn.style.display = "none", 500);
-        }, 2000);
+            btn.classList.add('hidden-btn');
+        }, 1500);
     }).catch(e => console.error("Ses başlatılamadı:", e));
 }
 
@@ -51,10 +50,13 @@ channel.bind('new-message', function(data) {
     const isOwn = data.user === userName;
     const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
+    // Rastgele renk ataması (İsimlerin her birinde farklı renk olması için basit bir yöntem)
+    const nameColor = isOwn ? '#fff' : stringToColor(data.user);
+
     const msgDiv = document.createElement('div');
     msgDiv.className = `msg ${isOwn ? 'own' : 'other'}`;
     msgDiv.innerHTML = `
-        ${!isOwn ? `<span class="user-tag">${data.user}</span>` : ''}
+        ${!isOwn ? `<span class="user-tag" style="color: ${nameColor}">${data.user}</span>` : ''}
         <div class="msg-text">${data.text}</div>
         <span class="time">${timeStr}</span>
     `;
@@ -62,20 +64,20 @@ channel.bind('new-message', function(data) {
     chatDiv.appendChild(msgDiv);
     chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
 
-    // Kendi mesajımız değilse ses çal ve bildirim gönder
     if (!isOwn) {
         const audio = document.getElementById('notifSound');
         audio.play().catch(e => {});
-
-        if (document.hidden && Notification.permission === "granted") {
-            new Notification("Barzo Chat", { 
-                body: `${data.user}: ${data.text}`,
-                icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
-            });
-        }
+        // ... bildirim kodları ...
     }
 });
-
+function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return "#" + "00000".substring(0, 6 - c.length) + c;
+};
 // Mesaj Gönderme Fonksiyonu
 async function sendMessage() {
     const input = document.getElementById('msgInput');

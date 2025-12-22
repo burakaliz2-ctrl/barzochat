@@ -2,32 +2,17 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// Sayfa ilk yüklendiğinde
+// BAŞLANGIÇ
 document.addEventListener('DOMContentLoaded', () => {
-    if (loggedInUser) {
-        showChat();
-    } else {
-        document.getElementById('auth-screen').style.display = 'flex';
-        document.getElementById('chat-screen').style.display = 'none';
-    }
+    if (loggedInUser) showChat();
+    else document.getElementById('auth-screen').style.display = 'flex';
 });
 
-function showChat() {
-    // Giriş ekranını tamamen gizle ve yer kaplamasını engelle
-    document.getElementById('auth-screen').style.display = 'none';
-    
-    // Chat ekranını flex olarak aç
-    const chatScreen = document.getElementById('chat-screen');
-    chatScreen.style.setProperty('display', 'flex', 'important');
-    
-    initPusher();
-    switchChat('general');
-}
-
+// GİRİŞ & KAYIT
 async function auth(action) {
     const user = document.getElementById('auth-user').value.trim();
     const pass = document.getElementById('auth-pass').value.trim();
-    if(!user || !pass) return alert("Boş bırakma!");
+    if(!user || !pass) return alert("Bilgileri gir!");
 
     const res = await fetch('/api/auth', {
         method: 'POST',
@@ -38,15 +23,88 @@ async function auth(action) {
     if (res.ok) {
         if(action === 'login') {
             localStorage.setItem('barzoUser', user);
-            location.reload(); // Temiz geçiş için en sağlıklısı
-        } else {
-            alert("Racon kesildi! Şimdi giriş yap.");
-        }
+            location.reload();
+        } else alert("Kayıt başarılı!");
     } else {
         const data = await res.json();
         alert(data.error);
     }
 }
 
-// initPusher, switchChat ve renderMessage fonksiyonların bir önceki 
-// verdiğim halini (target destekli) kullanmaya devam et.
+// CHAT EKRANINI AÇ
+function showChat() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
+    initPusher();
+    switchChat('general');
+}
+
+// PUSHER BAĞLANTISI
+function initPusher() {
+    const pusher = new Pusher('7c829d72a0184ee33bb3', { 
+        cluster: 'eu',
+        authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}`
+    });
+
+    presenceChannel = pusher.subscribe('presence-chat');
+
+    presenceChannel.bind('new-message', data => {
+        const isGeneral = data.target === 'general' && activeChat === 'general';
+        const isDM = (data.user === activeChat && data.target === loggedInUser) || 
+                     (data.user === loggedInUser && data.target === activeChat);
+        if (isGeneral || isDM) renderMessage(data);
+    });
+
+    presenceChannel.bind('pusher:subscription_succeeded', updateUI);
+    presenceChannel.bind('pusher:member_added', updateUI);
+    presenceChannel.bind('pusher:member_removed', updateUI);
+}
+
+function updateUI() {
+    const listDiv = document.getElementById('user-list');
+    listDiv.innerHTML = `<div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">🌍 Genel</div>`;
+    presenceChannel.members.each(m => {
+        if (m.id !== loggedInUser && m.id !== "undefined") {
+            listDiv.insertAdjacentHTML('beforeend', `<div class="user-item ${activeChat === m.id ? 'active' : ''}" onclick="switchChat('${m.id}')">🟢 ${m.id}</div>`);
+        }
+    });
+}
+
+// MESAJ GÖNDERME (Hatalar giderildi)
+async function sendMessage() {
+    const input = document.getElementById('msgInput');
+    const text = input.value.trim();
+    if(!text) return;
+
+    const payload = { action: 'new', user: loggedInUser, text, target: activeChat, id: Date.now().toString() };
+    input.value = '';
+
+    await fetch('/api/send-message', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
+}
+
+function renderMessage(data) {
+    const isOwn = data.user === loggedInUser;
+    const html = `<div class="msg ${isOwn ? 'own' : 'other'}"><b>${data.user}:</b><br>${data.text}</div>`;
+    const chat = document.getElementById('chat');
+    chat.insertAdjacentHTML('beforeend', html);
+    chat.scrollTop = chat.scrollHeight;
+}
+
+// ÇIKIŞ YAP (Kesin çözüm)
+function logout() {
+    localStorage.removeItem('barzoUser');
+    location.href = "/"; // Sayfayı ana dizine yönlendir ve temizle
+}
+
+async function switchChat(t) {
+    activeChat = t;
+    document.getElementById('chat').innerHTML = '';
+    const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
+    const msgs = await res.json();
+    msgs.forEach(renderMessage);
+    updateUI();
+}

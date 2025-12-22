@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>Barzo Chat</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
@@ -24,18 +24,17 @@
                 <h3>Kişiler</h3>
                 <span id="online-counter" class="online-count">0</span>
             </div>
-            <div id="user-list">
-                </div>
+            <div id="user-list"></div>
             <div class="sidebar-footer">
-                <button onclick="logout()">Çıkış</button>
+                <button onclick="logout()" class="logout-btn">Çıkış Yap</button>
             </div>
         </aside>
 
         <main id="main-chat">
             <header>
+                <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
                 <div id="chat-target-info">
                     <strong id="active-chat-title">Genel Mevzu</strong>
-                    <span id="active-chat-status"></span>
                 </div>
             </header>
 
@@ -43,19 +42,17 @@
             
             <div class="bottom-area">
                 <div class="emoji-bar">
-                    <span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('🔥')">🔥</span>
-                    <label style="cursor:pointer;">📁<input type="file" style="display:none" onchange="sendFile(this)"></label>
+                    <span onclick="addEmoji('😂')">😂</span>
+                    <span onclick="addEmoji('🔥')">🔥</span>
+                    <span onclick="addEmoji('🗿')">🗿</span>
                 </div>
-                <div class="input-wrapper">
-                    <div class="input-container">
-                        <input type="text" id="msgInput" placeholder="Mesajını yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
-                        <button id="send-btn" onclick="sendMessage()">➤</button>
-                    </div>
+                <div class="input-container">
+                    <input type="text" id="msgInput" placeholder="Mesajını yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
+                    <button id="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
         </main>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>

@@ -55,13 +55,15 @@ function updateUserList() {
         </div>
     `;
 
-    // Pusher Presence kanalı üzerinden online kişileri listele
     channel.members.each(member => {
-        if (member.info.username !== loggedInUser) {
+        // info nesnesi yoksa id'yi kullan, o da yoksa 'Gizli Üye' yaz
+        const name = (member.info && member.info.username) ? member.info.username : member.id;
+        
+        if (name !== loggedInUser) {
             const html = `
-                <div class="user-item ${activeChat === member.info.username ? 'active' : ''}" onclick="switchChat('${member.info.username}')">
+                <div class="user-item ${activeChat === name ? 'active' : ''}" onclick="switchChat('${name}')">
                     <div class="status-dot online"></div>
-                    <span class="user-name">${member.info.username}</span>
+                    <span class="user-name">${name}</span>
                 </div>`;
             listDiv.insertAdjacentHTML('beforeend', html);
         }

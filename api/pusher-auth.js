@@ -12,11 +12,10 @@ export default async function handler(req, res) {
   const { socket_id, channel_name, username } = req.body;
 
   // Kullanıcı bilgilerini Pusher'a bildiriyoruz
-  const presenceData = {
-    user_id: socket_id,
-    user_info: { name: username }
-  };
-
-  const auth = pusher.authenticate(socket_id, channel_name, presenceData);
+const presenceData = {
+    user_id: username, // benzersiz id
+    user_info: { username: username } // script.js'in okuduğu yer
+};
+const authResponse = pusher.authorizeChannel(socketId, channel, presenceData);
   res.send(auth);
 }

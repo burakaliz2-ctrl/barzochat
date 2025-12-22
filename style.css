@@ -87,7 +87,38 @@ input {
     outline: none; 
     font-size: 16px; 
 }
+/* Sidebar ana yapı */
+#sidebar {
+    width: 280px;
+    background: #141418;
+    border-right: 1px solid #27272a;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Daralmasını engelle */
+}
 
+/* Çıkış Butonu Stili */
+.sidebar-footer button, .logout-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+}
+
+/* Auth Ekranı Butonları */
+.auth-box button {
+    background: #7226fa;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+}
 button#send-btn { 
     background: var(--accent-color); 
     color: white; 

@@ -1,12 +1,16 @@
 :root {
     --bg-main: #0a0a0c;
     --sidebar-bg: #141418;
-    --accent-color: #7226fa; /* Mor tonlarında modern bir renk */
+    --accent-color: #7226fa;
     --msg-other: #1f1f23;
     --msg-own: linear-gradient(135deg, #7226fa, #4b10b3);
     --text-primary: #ffffff;
     --text-dim: #a1a1aa;
+    --header-h: 70px;
+    --input-h: 85px;
 }
+
+* { box-sizing: border-box; }
 
 body { 
     font-family: 'Inter', -apple-system, sans-serif; 
@@ -14,121 +18,97 @@ body {
     color: var(--text-primary); 
     margin: 0; 
     display: flex; 
+    flex-direction: column; /* Mobilde dikey dizilim */
     height: 100vh; 
+    height: -webkit-fill-available; /* iOS Safari için tam ekran fix */
+    overflow: hidden; 
 }
 
-/* Sol Panel (Opsiyonel Alan) */
+html { height: -webkit-fill-available; }
+
+/* Mobilde Sidebar'ı gizleyebilir veya küçültebiliriz */
 .sidebar {
-    width: 60px;
-    background: var(--sidebar-bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px 0;
-    border-right: 1px solid #27272a;
+    display: none; /* Mobilde alanı daraltmamak için gizledik */
 }
 
-/* Ana Chat Alanı */
+@media (min-width: 768px) {
+    body { flex-direction: row; }
+    .sidebar { display: flex; width: 60px; border-right: 1px solid #27272a; }
+}
+
 .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
+    height: 100%;
     position: relative;
 }
 
 header { 
-    padding: 15px 25px; 
-    background: rgba(20, 20, 24, 0.9);
+    height: var(--header-h);
+    padding: 0 20px; 
+    background: rgba(20, 20, 24, 0.95);
     backdrop-filter: blur(10px);
-    border-bottom: 2px solid var(--accent-color); /* Alt çizgiyi mor yaptık */
+    border-bottom: 1px solid #27272a;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    z-index: 10;
 }
 
 .brand {
     font-weight: 800;
-    letter-spacing: 0.5px; /* Büyük harf olmadığı için spacing'i azalttım */
-    color: var(--text-primary);
-    font-size: 1.2rem;
-    text-transform: none; /* Büyük harf zorlamasını kaldırdım */
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .online-count {
-    background: rgba(34, 197, 94, 0.2);
+    background: rgba(34, 197, 94, 0.15);
     color: #22c55e;
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    border: 1px solid #22c55e;
-    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 #chat { 
     flex: 1; 
     overflow-y: auto; 
-    padding: 30px; 
+    padding: 15px; 
     display: flex; 
     flex-direction: column; 
-    gap: 15px;
-    background: radial-gradient(circle at center, #111115 0%, #0a0a0c 100%);
+    gap: 10px;
+    padding-bottom: 20px;
+    -webkit-overflow-scrolling: touch; /* iOS kaydırma akıcılığı */
 }
 
-/* Mesaj Balonları - WhatsApp'tan Farklı Stil */
+/* Mesaj Balonları Mobil Ayarı */
 .msg { 
-    padding: 12px 18px; 
-    border-radius: 18px; 
-    max-width: 65%; 
-    font-size: 0.95rem;
-    line-height: 1.5;
-    position: relative;
-    transition: all 0.2s ease;
+    padding: 10px 14px; 
+    border-radius: 16px; 
+    max-width: 85%; /* Mobilde biraz daha geniş yer kaplasın */
+    font-size: 0.9rem;
+    line-height: 1.4;
 }
 
-.other { 
-    background: var(--msg-other); 
-    align-self: flex-start; 
-    border-bottom-left-radius: 4px;
-    color: #e4e4e7;
-}
+.other { background: var(--msg-other); align-self: flex-start; border-bottom-left-radius: 4px; }
+.own { background: var(--msg-own); align-self: flex-end; border-bottom-right-radius: 4px; }
 
-.own { 
-    background: var(--msg-own); 
-    align-self: flex-end; 
-    border-bottom-right-radius: 4px;
-    box-shadow: 0 4px 15px rgba(114, 38, 250, 0.3);
-}
-
-.user-tag {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-    display: block;
-    font-weight: 800;
-    color: var(--accent-color);
-}
-
-.time { 
-    font-size: 0.65rem; 
-    opacity: 0.5;
-    margin-top: 5px;
-    display: block;
-    text-align: right;
-}
-
-/* Input Alanı */
+/* Giriş Alanı - Mobil Sabitleme */
 .input-wrapper {
-    padding: 20px 30px;
+    padding: 10px 15px;
     background: var(--bg-main);
+    border-top: 1px solid #27272a;
+    padding-bottom: env(safe-area-inset-bottom); /* iPhone alt çubuk boşluğu */
 }
 
 .input-container { 
     display: flex; 
     background: #18181b; 
-    padding: 8px 15px; 
-    border-radius: 12px; 
+    padding: 5px 10px; 
+    border-radius: 25px; /* Daha oval, modern bir görünüm */
     border: 1px solid #27272a;
     align-items: center;
 }
@@ -140,25 +120,27 @@ input {
     color: white;
     padding: 10px;
     outline: none;
-    font-size: 1rem;
+    font-size: 16px; /* 16px altı mobilde zoom yapar, o yüzden 16px şart */
 }
 
 button#send-btn { 
     background: var(--accent-color); 
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
     font-weight: bold;
     cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #notify-btn {
     background: #27272a;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.8rem;
+    font-size: 0.65rem;
+    padding: 6px 10px;
+    border-radius: 8px;
 }

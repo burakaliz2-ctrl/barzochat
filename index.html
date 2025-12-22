@@ -2,40 +2,60 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Barzo Chat</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body>
-    <header>
-        <div class="brand" style="font-weight: 800;">Barzo Chat <span id="online-counter" class="online-count">0</span></div>
-        <div style="display:flex; gap:10px;">
-            <button id="notify-btn" onclick="initNotifications()" style="background:var(--accent-color); border:none; color:white; padding:5px 10px; border-radius:10px; cursor:pointer;">🔊</button>
-            <button onclick="logout()" style="background:#ef4444; border:none; color:white; padding:5px 10px; border-radius:10px; font-size:0.7rem; cursor:pointer;">Çıkış</button>
-        </div>
-    </header>
-
-    <div id="chat"></div>
-    
-    <div class="bottom-area">
-        <div class="emoji-bar">
-            <span onclick="addEmoji('😂')">😂</span>
-            <span onclick="addEmoji('🔥')">🔥</span>
-            <span onclick="addEmoji('👍')">👍</span>
-            <span onclick="addEmoji('❤️')">❤️</span>
-            <label style="cursor:pointer;">📁<input type="file" style="display:none" onchange="sendFile(this)"></label>
-        </div>
-
-        <div class="input-wrapper">
-            <div class="input-container">
-                <input type="text" id="msgInput" placeholder="Mevzuya gir..." onkeypress="if(event.key==='Enter') sendMessage()">
-                <button id="send-btn" onclick="sendMessage()">➤</button>
-            </div>
+    <div id="auth-screen" class="screen">
+        <div class="auth-box">
+            <h2>Barzo Chat</h2>
+            <input type="text" id="auth-user" placeholder="Racon İsmi">
+            <input type="password" id="auth-pass" placeholder="Şifre">
+            <button onclick="auth('login')">Giriş Yap</button>
+            <button onclick="auth('register')" class="secondary">Kayıt Ol</button>
         </div>
     </div>
 
-    <audio id="notifSound" src="https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3"></audio>
+    <div id="chat-screen" class="screen" style="display:none;">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <h3>Kişiler</h3>
+                <span id="online-counter" class="online-count">0</span>
+            </div>
+            <div id="user-list">
+                </div>
+            <div class="sidebar-footer">
+                <button onclick="logout()">Çıkış</button>
+            </div>
+        </aside>
+
+        <main id="main-chat">
+            <header>
+                <div id="chat-target-info">
+                    <strong id="active-chat-title">Genel Mevzu</strong>
+                    <span id="active-chat-status"></span>
+                </div>
+            </header>
+
+            <div id="chat"></div>
+            
+            <div class="bottom-area">
+                <div class="emoji-bar">
+                    <span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('🔥')">🔥</span>
+                    <label style="cursor:pointer;">📁<input type="file" style="display:none" onchange="sendFile(this)"></label>
+                </div>
+                <div class="input-wrapper">
+                    <div class="input-container">
+                        <input type="text" id="msgInput" placeholder="Mesajını yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
+                        <button id="send-btn" onclick="sendMessage()">➤</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>

@@ -1,138 +1,208 @@
-// 1. KULLANICI ADI VE OTURUM YÖNETİMİ
-let userName = localStorage.getItem('chatUser');
-if (!userName) {
-    userName = prompt("Racon için bir isim gir:") || "Barzo_" + Math.floor(Math.random() * 1000);
-    localStorage.setItem('chatUser', userName);
-}
+// 1. OTURUM VE DEĞİŞKEN BAŞLATMA
+let loggedInUser = localStorage.getItem('barzoUser');
+let activeChat = 'general'; // Mevcut sohbet edilen kişi veya 'general'
+let channel = null;
 
-// 2. PUSHER YAPILANDIRMASI
-const pusher = new Pusher('7c829d72a0184ee33bb3', { 
-    cluster: 'eu',
-    authEndpoint: '/api/pusher-auth',
-    auth: { params: { username: userName } }
+document.addEventListener('DOMContentLoaded', () => {
+    if (loggedInUser) {
+        showChat();
+    } else {
+        document.getElementById('auth-screen').style.display = 'flex';
+        document.getElementById('chat-screen').style.display = 'none';
+    }
 });
 
-const channel = pusher.subscribe('presence-chat');
+// 2. ÜYELİK İŞLEMLERİ
+async function auth(action) {
+    const username = document.getElementById('auth-user').value.trim();
+    const password = document.getElementById('auth-pass').value.trim();
+    if(!username || !password) return alert("Alanları doldur!");
 
-// 3. ONLINE SAYACI DÜZELTMESİ
-function updateMemberCount() {
-    const counterEl = document.getElementById('online-counter');
-    if (counterEl && channel.members) {
-        counterEl.innerText = channel.members.count;
+    const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action, username, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+        if(action === 'login') {
+            localStorage.setItem('barzoUser', username);
+            loggedInUser = username;
+            showChat();
+        } else {
+            alert("Raconun kesildi (Kayıt başarılı), şimdi giriş yap!");
+        }
+    } else {
+        alert(data.error || "İşlem başarısız");
     }
 }
 
-channel.bind('pusher:subscription_succeeded', () => {
-    updateMemberCount();
-});
+// 3. CHAT EKRANINI GÖSTER VE SOHBETİ BAŞLAT
+async function showChat() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('chat-screen').style.display = 'flex';
+    initPusher();
+    switchChat('general'); // Başlangıçta genel odayı yükle
+}
 
-channel.bind('pusher:member_added', () => {
-    updateMemberCount();
-});
+// 4. KİŞİ LİSTESİNİ GÜNCELLEME (Online Durumu Dahil)
+function updateUserList() {
+    const listDiv = document.getElementById('user-list');
+    listDiv.innerHTML = `
+        <div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">
+            <div class="status-dot online"></div>
+            <span class="user-name">🌍 Genel Mevzu</span>
+        </div>
+    `;
 
-channel.bind('pusher:member_removed', () => {
-    updateMemberCount();
-});
+    // Pusher Presence kanalı üzerinden online kişileri listele
+    channel.members.each(member => {
+        if (member.info.username !== loggedInUser) {
+            const html = `
+                <div class="user-item ${activeChat === member.info.username ? 'active' : ''}" onclick="switchChat('${member.info.username}')">
+                    <div class="status-dot online"></div>
+                    <span class="user-name">${member.info.username}</span>
+                </div>`;
+            listDiv.insertAdjacentHTML('beforeend', html);
+        }
+    });
+}
 
-// 4. MESAJ GÖNDERME VE ALMA
+// 5. SOHBET DEĞİŞTİRME (GENEL VEYA DM)
+async function switchChat(target) {
+    activeChat = target;
+    document.getElementById('active-chat-title').innerText = target === 'general' ? 'Genel Mevzu' : `👤 ${target}`;
+    document.getElementById('chat').innerHTML = '<div class="loading">Yükleniyor...</div>';
+    
+    // UI Aktiflik Durumu
+    document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+
+    try {
+        // API'den mesajları çek (DM filtresi ile)
+        const url = target === 'general' ? '/api/get-messages' : `/api/get-messages?dm=${target}&user=${loggedInUser}`;
+        const res = await fetch(url);
+        const oldMsgs = await res.json();
+        
+        const chatDiv = document.getElementById('chat');
+        chatDiv.innerHTML = ''; 
+        
+        oldMsgs.forEach(m => {
+            renderMessage({ 
+                user: m.username, 
+                text: m.content, 
+                id: m.id, 
+                file: m.file_url, 
+                isImage: m.is_image,
+                time: m.created_at,
+                target: m.target
+            });
+        });
+    } catch (err) {
+        console.error("Mesajlar yüklenemedi:", err);
+    }
+}
+
+// 6. PUSHER BAĞLANTISI
+function initPusher() {
+    const pusher = new Pusher('7c829d72a0184ee33bb3', { 
+        cluster: 'eu', 
+        authEndpoint: '/api/pusher-auth', 
+        auth: { params: { username: loggedInUser } } 
+    });
+
+    channel = pusher.subscribe('presence-chat');
+
+    channel.bind('new-message', data => {
+        // Mesaj genel ise veya mevcut açık olan DM penceresine aitse render et
+        const isDMBetweenUs = (data.user === activeChat && data.target === loggedInUser) || 
+                             (data.user === loggedInUser && data.target === activeChat);
+        
+        if ((data.target === 'general' && activeChat === 'general') || isDMBetweenUs) {
+            renderMessage(data);
+        } else {
+            // Başka birinden DM geldiyse bildirim verebilirsin
+            console.log("Yeni bildirim: ", data.user);
+        }
+    });
+
+    channel.bind('delete-message', data => {
+        document.getElementById(`msg-${data.id}`)?.remove();
+    });
+
+    // Online Takibi Olayları
+    channel.bind('pusher:subscription_succeeded', updateUserList);
+    channel.bind('pusher:member_added', updateUserList);
+    channel.bind('pusher:member_removed', updateUserList);
+}
+
+// 7. MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if(!text) return;
 
-    const msgId = Date.now().toString();
     input.value = '';
 
     await fetch('/api/send-message', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'new', user: userName, text: text, id: msgId })
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ 
+            action: 'new', 
+            user: loggedInUser, 
+            text: text, 
+            target: activeChat, // Mesajın nereye gittiğini belirtiyoruz
+            id: Date.now().toString() 
+        })
     });
 }
 
-channel.bind('new-message', function(data) {
+// 8. EKRANA BASMA (RENDER)
+function renderMessage(data) {
+    const isOwn = data.user === loggedInUser;
     const chatDiv = document.getElementById('chat');
-    const isOwn = data.user === userName;
-    let content = data.text;
-
-    // Dosya/Resim kontrolü
+    
+    let contentHtml = data.text;
     if (data.file) {
-        content = data.isImage 
-            ? `<img src="${data.file}" style="max-width:100%; border-radius:10px; margin-top:5px; cursor:pointer;" onclick="window.open(this.src)">`
-            : `<a href="${data.file}" download="${data.text}" style="color:#7226fa; font-weight:bold; display:block; margin-top:5px;">📁 ${data.text} (İndir)</a>`;
+        contentHtml = data.isImage 
+            ? `<img src="${data.file}" style="max-width:100%; border-radius:10px; margin-top:5px;">` 
+            : `<a href="${data.file}" target="_blank" style="color:#7226fa;">📁 Dosya İndir</a>`;
     }
 
-    const msgHtml = `
+    const html = `
         <div class="msg ${isOwn ? 'own' : 'other'}" id="msg-${data.id}">
             ${!isOwn ? `<span class="user-tag" style="color:${stringToColor(data.user)}">${data.user}</span>` : ''}
-            <div class="msg-text">${content}</div>
+            <div class="msg-text">${contentHtml}</div>
             <div class="msg-footer">
-                <span class="time">${new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'})}</span>
-                ${isOwn ? `<div class="actions"><span onclick="deleteMsg('${data.id}')" style="cursor:pointer; margin-left:8px;">🗑️</span></div>` : ''}
+                <span class="time">${new Date(data.time || Date.now()).toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'})}</span>
+                ${isOwn ? `<span onclick="deleteMsg('${data.id}')" style="cursor:pointer; margin-left:8px;">🗑️</span>` : ''}
             </div>
         </div>`;
 
-    chatDiv.insertAdjacentHTML('beforeend', msgHtml);
-    chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
+    chatDiv.insertAdjacentHTML('beforeend', html);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
 
-    if (!isOwn) {
-        const audio = document.getElementById('notifSound');
-        if(audio) audio.play().catch(() => {});
+// YARDIMCI FONKSİYONLAR
+function logout() {
+    if(confirm("Mevzudan ayrılıyorsun, emin misin?")) {
+        localStorage.removeItem('barzoUser');
+        location.reload();
     }
-});
+}
 
-// 5. SİLME VE DÜZENLEME OLAYLARI
-channel.bind('delete-message', (data) => {
-    document.getElementById(`msg-${data.id}`)?.remove();
-});
-
-function deleteMsg(id) {
-    if(confirm("Bu mesajı herkesten silmek istediğine emin misin?")) {
-        fetch('/api/send-message', {
+async function deleteMsg(id) {
+    if(confirm("Bu mesajı kökten silelim mi?")) {
+        await fetch('/api/send-message', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ action: 'delete', id: id })
         });
     }
 }
 
-// 6. DOSYA GÖNDERME SİSTEMİ
-async function sendFile(input) {
-    const file = input.files[0];
-    if (!file) return;
-    if (file.size > 1024 * 1024) return alert("Dosya çok büyük! (Max 1MB)");
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        const fileData = e.target.result;
-        await fetch('/api/send-message', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ 
-                action: 'new', 
-                user: userName, 
-                text: file.name, 
-                file: fileData, 
-                isImage: file.type.startsWith('image/'),
-                id: Date.now().toString() 
-            })
-        });
-    };
-    reader.readAsDataURL(file);
-}
-
-// 7. YARDIMCI FONKSİYONLAR (Çıkış, Emoji, Renk, Bildirim)
-function logout() {
-    if(confirm("Çıkış yapılıyor?")) {
-        localStorage.removeItem('chatUser');
-        location.reload();
-    }
-}
-
 function addEmoji(e) { 
     const input = document.getElementById('msgInput');
-    input.value += e; 
-    input.focus();
+    input.value += e; input.focus();
 }
 
 function stringToColor(s) {
@@ -140,23 +210,10 @@ function stringToColor(s) {
     return `hsl(${Math.abs(h) % 360}, 70%, 75%)`;
 }
 
-function initNotifications() {
-    Notification.requestPermission();
-    const audio = document.getElementById('notifSound');
-    audio.play().then(() => {
-        audio.pause();
-        const btn = document.getElementById('notify-btn');
-        btn.innerHTML = "✅ Aktif";
-        setTimeout(() => btn.style.display = 'none', 1500);
-    }).catch(() => {});
-}
-
-// 8. MOBİL KLAVYE FIX
 if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
         document.body.style.height = window.visualViewport.height + 'px';
         window.scrollTo(0, 0);
-        const chatDiv = document.getElementById('chat');
-        chatDiv.scrollTop = chatDiv.scrollHeight;
+        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
     });
 }

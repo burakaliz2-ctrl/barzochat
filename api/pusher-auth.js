@@ -5,18 +5,23 @@ const pusher = new Pusher({
 });
 
 export default function handler(req, res) {
-    const { socket_id, channel_name, username } = req.body;
-    
-    // Burası çok önemli: user_id olarak senin veritabanındaki ismini gönderiyoruz
-    const presenceData = {
-        user_id: username, 
-        user_info: { name: username }
-    };
+  // username bazen body'den bazen query'den gelebilir, ikisini de kontrol edelim
+  const { socket_id, channel_name } = req.body;
+  const username = req.body.username || req.query.username;
 
-    try {
-        const auth = pusher.authenticate(socket_id, channel_name, presenceData);
-        res.send(auth);
-    } catch (error) {
-        res.status(403).send("Pusher Auth Hatası");
-    }
+  if (!username) {
+    return res.status(400).send("Username eksik!");
+  }
+
+  const presenceData = {
+    user_id: username, // Sayıların yerine ismin gelmesini sağlayan satır
+    user_info: { username: username }
+  };
+
+  try {
+    const auth = pusher.authenticate(socket_id, channel_name, presenceData);
+    res.send(auth);
+  } catch (error) {
+    res.status(403).send("Auth hatası");
+  }
 }

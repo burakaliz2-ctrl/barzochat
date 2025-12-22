@@ -9,8 +9,11 @@
 </head>
 <body>
     <header>
-        <div class="brand">Barzo Chat <span id="online-counter" class="online-count">Online: 0</span></div>
-        <button id="notify-btn" onclick="initNotifications()">🔊 Sesi Aç</button>
+        <div class="brand">Barzo Chat <span id="online-counter" class="online-count">0</span></div>
+        <div style="display:flex; gap:10px;">
+            <button id="notify-btn" onclick="initNotifications()">🔊</button>
+            <button onclick="logout()" style="background:#ef4444; border:none; color:white; padding:5px 10px; border-radius:10px; font-size:0.7rem; cursor:pointer;">Çıkış</button>
+        </div>
     </header>
 
     <div id="chat"></div>
@@ -18,7 +21,7 @@
     <div class="emoji-bar">
         <span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('🔥')">🔥</span>
         <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('❤️')">❤️</span>
-        <span onclick="addEmoji('🤣')">🤣</span><span onclick="addEmoji('💀')">💀</span>
+        <label style="cursor:pointer;">📁<input type="file" style="display:none" onchange="sendFile(this)"></label>
     </div>
 
     <div class="input-wrapper">

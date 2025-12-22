@@ -48,9 +48,10 @@ header {
 
 .brand {
     font-weight: 800;
-    letter-spacing: 2px;
+    letter-spacing: 0.5px; /* Büyük harf olmadığı için spacing'i azalttım */
     color: var(--text-primary);
     font-size: 1.2rem;
+    text-transform: none; /* Büyük harf zorlamasını kaldırdım */
 }
 
 .online-count {

@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const { user, text } = req.body;
     
     // Pusher kanalına mesajı tetikle
-    await pusher.trigger("chat-channel", "new-message", {
+    await pusher.trigger("presence-chat", "new-message", {
       user: user,
       text: text
     });

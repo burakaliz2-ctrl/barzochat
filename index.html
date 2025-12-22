@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BARZO CHAT</title>
+    <title>Barzo Chat</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
@@ -16,8 +16,8 @@
     <div class="main-content">
         <header>
             <div class="brand">
-                BARZO CHAT 
-                <span id="online-counter" class="online-count">Yükleniyor...</span>
+                Barzo Chat 
+                <span id="online-counter" class="online-count">Online: 0</span>
             </div>
             <button id="notify-btn" onclick="initNotifications()">Sistemi Aktifleştir (Ses/Bildirim)</button>
         </header>
@@ -51,19 +51,30 @@
             document.getElementById('notify-btn').style.background = "#22c55e";
         }
 
-        const pusher = new Pusher('7c829d72a0184ee33bb3', { cluster: 'eu' });
+        // Pusher Auth Ayarı
+        const pusher = new Pusher('7c829d72a0184ee33bb3', { 
+            cluster: 'eu',
+            authEndpoint: '/api/pusher-auth',
+            auth: { params: { username: userName } }
+        });
         
-        // Ana sohbet kanalı
-        const channel = pusher.subscribe('chat-channel');
+        // Presence kanalı (Online takibi için)
+        const channel = pusher.subscribe('presence-chat');
 
-        // ONLINE SAYACI İÇİN MANTIK:
-        // Not: Gerçek "Presence" kanalı için backend onayı gerekir. 
-        // Şimdilik basitçe kanala bağlananları simüle eden bir sayaç gösteriyoruz.
-        channel.bind('pusher:subscription_succeeded', () => {
-            // Basit bir rastgelelik veya sabit başlangıç (Gerçek sayı için Presence kanalı şarttır)
-            document.getElementById('online-counter').innerText = "● ÇEVRİMİÇİ"; 
+        // Online Sayısını Güncelleme
+        channel.bind('pusher:subscription_succeeded', (members) => {
+            document.getElementById('online-counter').innerText = "Online: " + members.count;
         });
 
+        channel.bind('pusher:member_added', () => {
+            document.getElementById('online-counter').innerText = "Online: " + channel.members.count;
+        });
+
+        channel.bind('pusher:member_removed', () => {
+            document.getElementById('online-counter').innerText = "Online: " + channel.members.count;
+        });
+
+        // Mesaj Alma (Kanal ismi değiştiği için burayı da güncelledik)
         channel.bind('new-message', function(data) {
             const chatDiv = document.getElementById('chat');
             const isOwn = data.user === userName;
@@ -83,7 +94,7 @@
             if (!isOwn) {
                 document.getElementById('notifSound').play().catch(e => {});
                 if (document.hidden && Notification.permission === "granted") {
-                    new Notification("Barzo'dan Mesaj: " + data.user, { body: data.text });
+                    new Notification("Barzo'dan Mesaj", { body: data.user + ": " + data.text });
                 }
             }
         });

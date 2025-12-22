@@ -17,48 +17,87 @@ body {
     margin: 0; 
     display: flex; 
     flex-direction: column; 
-    height: 100vh; 
-    height: -webkit-fill-available;
-    overflow: hidden; 
+    height: 100vh; /* Ekran yüksekliğini sabitle */
+    overflow: hidden; /* Sayfanın tamamının kaymasını engelle */
 }
 
 header { 
-    height: 70px;
+    height: 60px;
     padding: 0 20px; 
-    background: rgba(20, 20, 24, 0.95);
-    backdrop-filter: blur(10px);
+    background: #141418;
     border-bottom: 1px solid #27272a;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 10;
+    flex-shrink: 0; /* Header'ın küçülmesini engelle */
 }
 
-.brand { font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
-.online-count { background: rgba(34, 197, 94, 0.15); color: #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; border: 1px solid rgba(34, 197, 94, 0.3); }
+/* Mesaj Alanı - Sadece Burası Kayacak */
+#chat { 
+    flex: 1; 
+    overflow-y: auto; 
+    padding: 20px; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 12px;
+    background: var(--bg-main);
+}
 
-#chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+/* Sabit Alt Alan (Emoji + Input) */
+.bottom-area {
+    flex-shrink: 0; /* Alt alanın küçülmesini engelle */
+    background: var(--bg-main);
+    border-top: 1px solid #27272a;
+    padding-bottom: env(safe-area-inset-bottom);
+}
 
-.msg { padding: 10px 14px; border-radius: 16px; max-width: 80%; position: relative; animation: slideUp 0.3s ease; }
-@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.emoji-bar { 
+    display: flex; 
+    gap: 15px; 
+    padding: 10px 20px; 
+    background: #141418; 
+    border-bottom: 1px solid #27272a;
+}
 
-.other { background: var(--msg-other); align-self: flex-start; border-bottom-left-radius: 4px; }
-.own { background: var(--msg-own); align-self: flex-end; border-bottom-right-radius: 4px; }
-
-.user-tag { font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 4px; }
-.msg-text { font-size: 0.95rem; line-height: 1.5; }
-
-.msg-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 5px; opacity: 0.6; font-size: 0.65rem; }
-.actions { display: flex; gap: 8px; }
-.actions span { cursor: pointer; }
-
-.emoji-bar { display: flex; gap: 15px; padding: 10px 20px; background: #141418; border-top: 1px solid #27272a; overflow-x: auto; }
 .emoji-bar span { cursor: pointer; font-size: 1.2rem; }
 
-.input-wrapper { padding: 10px 15px; background: var(--bg-main); border-top: 1px solid #27272a; padding-bottom: env(safe-area-inset-bottom); }
-.input-container { display: flex; background: #18181b; padding: 5px 10px; border-radius: 25px; border: 1px solid #27272a; align-items: center; }
-input { flex: 1; background: transparent; border: none; color: white; padding: 10px; outline: none; font-size: 16px; }
+.input-wrapper { 
+    padding: 15px; 
+}
 
-button#send-btn { background: var(--accent-color); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
-#notify-btn { background: var(--accent-color); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.8rem; }
-.hidden-btn { opacity: 0; pointer-events: none; }
+.input-container { 
+    display: flex; 
+    background: #18181b; 
+    padding: 5px 15px; 
+    border-radius: 25px; 
+    border: 1px solid #27272a;
+    align-items: center;
+}
+
+input { 
+    flex: 1; 
+    background: transparent; 
+    border: none; 
+    color: white; 
+    padding: 12px; 
+    outline: none; 
+    font-size: 16px; 
+}
+
+button#send-btn { 
+    background: var(--accent-color); 
+    color: white; 
+    border: none; 
+    width: 40px; 
+    height: 40px; 
+    border-radius: 50%; 
+    cursor: pointer; 
+}
+
+/* Mesaj Balonları */
+.msg { padding: 10px 14px; border-radius: 16px; max-width: 80%; position: relative; }
+.other { background: var(--msg-other); align-self: flex-start; border-bottom-left-radius: 4px; }
+.own { background: var(--msg-own); align-self: flex-end; border-bottom-right-radius: 4px; }
+.user-tag { font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 4px; }
+.msg-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 5px; opacity: 0.6; font-size: 0.65rem; }
+.online-count { background: rgba(34, 197, 94, 0.15); color: #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; }

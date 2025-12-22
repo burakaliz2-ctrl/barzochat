@@ -9,25 +9,29 @@
 </head>
 <body>
     <header>
-        <div class="brand">Barzo Chat <span id="online-counter" class="online-count">0</span></div>
+        <div class="brand" style="font-weight: 800;">Barzo Chat <span id="online-counter" class="online-count">0</span></div>
         <div style="display:flex; gap:10px;">
-            <button id="notify-btn" onclick="initNotifications()">🔊</button>
+            <button id="notify-btn" onclick="initNotifications()" style="background:var(--accent-color); border:none; color:white; padding:5px 10px; border-radius:10px; cursor:pointer;">🔊</button>
             <button onclick="logout()" style="background:#ef4444; border:none; color:white; padding:5px 10px; border-radius:10px; font-size:0.7rem; cursor:pointer;">Çıkış</button>
         </div>
     </header>
 
     <div id="chat"></div>
     
-    <div class="emoji-bar">
-        <span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('🔥')">🔥</span>
-        <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('❤️')">❤️</span>
-        <label style="cursor:pointer;">📁<input type="file" style="display:none" onchange="sendFile(this)"></label>
-    </div>
+    <div class="bottom-area">
+        <div class="emoji-bar">
+            <span onclick="addEmoji('😂')">😂</span>
+            <span onclick="addEmoji('🔥')">🔥</span>
+            <span onclick="addEmoji('👍')">👍</span>
+            <span onclick="addEmoji('❤️')">❤️</span>
+            <label style="cursor:pointer;">📁<input type="file" style="display:none" onchange="sendFile(this)"></label>
+        </div>
 
-    <div class="input-wrapper">
-        <div class="input-container">
-            <input type="text" id="msgInput" placeholder="Mevzuya gir..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button id="send-btn" onclick="sendMessage()">➤</button>
+        <div class="input-wrapper">
+            <div class="input-container">
+                <input type="text" id="msgInput" placeholder="Mevzuya gir..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <button id="send-btn" onclick="sendMessage()">➤</button>
+            </div>
         </div>
     </div>
 

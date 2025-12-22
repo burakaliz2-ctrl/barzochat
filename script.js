@@ -2,15 +2,48 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// 1. CHAT'İ BAŞLAT
-async function showChat() {
+// Sayfa ilk açıldığında oturum kontrolü
+if (loggedInUser) {
+    showChat();
+}
+
+async function auth(action) {
+    const username = document.getElementById('auth-user').value.trim();
+    const password = document.getElementById('auth-pass').value.trim();
+    
+    if(!username || !password) return alert("Alanları doldur!");
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action, username, password })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            if(action === 'login') {
+                localStorage.setItem('barzoUser', data.user.username);
+                loggedInUser = data.user.username;
+                location.reload(); // Temiz bir başlangıç için sayfayı yenile
+            } else {
+                alert("Kayıt başarılı, şimdi giriş yap!");
+            }
+        } else {
+            alert(data.error);
+        }
+    } catch (err) {
+        alert("Bağlantı hatası!");
+    }
+}
+
+function showChat() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'flex';
     initPusher();
-    switchChat('general'); 
+    switchChat('general');
 }
 
-// 2. PUSHER KURULUMU
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
@@ -20,50 +53,33 @@ function initPusher() {
 
     presenceChannel = pusher.subscribe('presence-chat');
 
-    // ANLIK MESAJ ALMA
-    presenceChannel.bind('new-message', (data) => {
-        const isGeneral = data.target === 'general' && activeChat === 'general';
-        const isDM = (data.user === activeChat && data.target === loggedInUser) || 
-                     (data.user === loggedInUser && data.target === activeChat);
-
-        if (isGeneral || isDM) {
-            renderMessage(data);
-        }
-    });
-
-    // KİŞİ LİSTESİ GÜNCELLEME
-    const updateList = () => {
+    // Online Listesi Güncelleme
+    const updateUI = () => {
         const listDiv = document.getElementById('user-list');
         listDiv.innerHTML = `<div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">🌍 Genel Mevzu</div>`;
         
         presenceChannel.members.each(member => {
-            const name = member.id; // user_id'den geliyor
-            if (name !== loggedInUser) {
-                const html = `<div class="user-item ${activeChat === name ? 'active' : ''}" onclick="switchChat('${name}')">🟢 ${name}</div>`;
-                listDiv.insertAdjacentHTML('beforeend', html);
+            if (member.id !== loggedInUser) {
+                listDiv.insertAdjacentHTML('beforeend', `
+                    <div class="user-item ${activeChat === member.id ? 'active' : ''}" onclick="switchChat('${member.id}')">
+                        <span class="status-dot online"></span> ${member.id}
+                    </div>`);
             }
         });
-        document.getElementById('online-counter').innerText = presenceChannel.members.count;
     };
 
-    presenceChannel.bind('pusher:subscription_succeeded', updateList);
-    presenceChannel.bind('pusher:member_added', updateList);
-    presenceChannel.bind('pusher:member_removed', updateList);
+    presenceChannel.bind('pusher:subscription_succeeded', updateUI);
+    presenceChannel.bind('pusher:member_added', updateUI);
+    presenceChannel.bind('pusher:member_removed', updateUI);
+
+    presenceChannel.bind('new-message', data => {
+        if (data.target === activeChat || (data.target === loggedInUser && data.user === activeChat)) {
+            renderMessage(data);
+        }
+    });
 }
 
-// 3. SOHBET DEĞİŞTİRME
-async function switchChat(target) {
-    activeChat = target;
-    document.getElementById('chat').innerHTML = ''; // Temizle
-    
-    // Eski mesajları Turso'dan çek
-    const url = target === 'general' ? '/api/get-messages' : `/api/get-messages?dm=${target}&user=${loggedInUser}`;
-    const res = await fetch(url);
-    const msgs = await res.json();
-    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, time: m.created_at, target: m.target }));
-}
-
-// 4. MESAJ GÖNDERME
+// Mesaj gönderme fonksiyonu (SendMessage)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
@@ -85,7 +101,6 @@ function renderMessage(data) {
         <small>${data.user}</small>
         <p>${data.text}</p>
     </div>`;
-    const chatDiv = document.getElementById('chat');
-    chatDiv.insertAdjacentHTML('beforeend', html);
-    chatDiv.scrollTop = chatDiv.scrollHeight;
+    document.getElementById('chat').insertAdjacentHTML('beforeend', html);
+    document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
 }

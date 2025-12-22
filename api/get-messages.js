@@ -6,8 +6,20 @@ const db = createClient({
 });
 
 export default async function handler(req, res) {
+    const { dm, user } = req.query; // Script'ten gelen parametreler
+
     try {
-        const result = await db.execute("SELECT * FROM messages ORDER BY id ASC LIMIT 50");
+        let result;
+        if (dm && dm !== 'general') {
+            // Özel Mesaj Sorgusu: Ben ona atmışım veya o bana atmış
+            result = await db.execute({
+                sql: "SELECT * FROM messages WHERE (username = ? AND target = ?) OR (username = ? AND target = ?) ORDER BY id ASC",
+                args: [user, dm, dm, user]
+            });
+        } else {
+            // Genel Sohbet Sorgusu
+            result = await db.execute("SELECT * FROM messages WHERE target = 'general' ORDER BY id ASC");
+        }
         res.status(200).json(result.rows);
     } catch (e) {
         res.status(500).json({ error: e.message });

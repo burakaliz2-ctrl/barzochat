@@ -5,18 +5,15 @@ const pusher = new Pusher({
 });
 
 export default function handler(req, res) {
-  const { socket_id, channel_name, username } = req.body;
-  
-  // Presence kanalı için kullanıcı bilgisi şarttır
-  const presenceData = {
-    user_id: username, 
-    user_info: { username: username } 
-  };
-
-  try {
-    const auth = pusher.authenticate(socket_id, channel_name, presenceData);
-    res.send(auth);
-  } catch (error) {
-    res.status(403).send("Auth hatası");
-  }
+    const { socket_id, channel_name, username } = req.body;
+    const presenceData = {
+        user_id: username,
+        user_info: { username: username }
+    };
+    try {
+        const auth = pusher.authenticate(socket_id, channel_name, presenceData);
+        res.send(auth);
+    } catch (error) {
+        res.status(403).send(error.message);
+    }
 }

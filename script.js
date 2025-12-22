@@ -1,98 +1,62 @@
-// Kullanıcı ismi yönetimi
-let userName = localStorage.getItem('chatUser');
-if (!userName) {
-    userName = prompt("Racon için bir isim gir:") || "Barzo_" + Math.floor(Math.random() * 1000);
-    localStorage.setItem('chatUser', userName);
-}
+let userName = localStorage.getItem('chatUser') || prompt("İsim gir:") || "Barzo_" + Math.floor(Math.random()*1000);
+localStorage.setItem('chatUser', userName);
 
-// Ses ve Bildirim Başlatma
-function initNotifications() {
-    Notification.requestPermission();
-    const audio = document.getElementById('notifSound');
-    
-    audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        
-        const btn = document.getElementById('notify-btn');
-        btn.innerHTML = "✅ Ses Aktif";
-        btn.style.background = "#22c55e";
-        
-        // Butonu zarifçe gizle ama yerini tutmaya devam etsin (sayfa kaymasın)
-        setTimeout(() => {
-            btn.classList.add('hidden-btn');
-        }, 1500);
-    }).catch(e => console.error("Ses başlatılamadı:", e));
-}
-
-// Pusher Yapılandırması
 const pusher = new Pusher('7c829d72a0184ee33bb3', { 
-    cluster: 'eu',
-    authEndpoint: '/api/pusher-auth',
-    auth: { params: { username: userName } }
+    cluster: 'eu', authEndpoint: '/api/pusher-auth', auth: { params: { username: userName } }
 });
-
-// Presence Kanalı (Online Takibi ve Mesajlar)
 const channel = pusher.subscribe('presence-chat');
 
-// Online Sayacı Güncellemeleri
-const updateOnlineCount = () => {
-    document.getElementById('online-counter').innerText = "Online: " + channel.members.count;
-};
+function initNotifications() {
+    Notification.requestPermission();
+    document.getElementById('notifSound').play().then(() => {
+        document.getElementById('notifSound').pause();
+        const btn = document.getElementById('notify-btn');
+        btn.innerHTML = "✅ Aktif";
+        setTimeout(() => btn.classList.add('hidden-btn'), 1000);
+    });
+}
 
-channel.bind('pusher:subscription_succeeded', updateOnlineCount);
-channel.bind('pusher:member_added', updateOnlineCount);
-channel.bind('pusher:member_removed', updateOnlineCount);
-
-// Yeni Mesaj Geldiğinde
-channel.bind('new-message', function(data) {
-    const chatDiv = document.getElementById('chat');
-    const isOwn = data.user === userName;
-    const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-
-    // Rastgele renk ataması (İsimlerin her birinde farklı renk olması için basit bir yöntem)
-    const nameColor = isOwn ? '#fff' : stringToColor(data.user);
-
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `msg ${isOwn ? 'own' : 'other'}`;
-    msgDiv.innerHTML = `
-        ${!isOwn ? `<span class="user-tag" style="color: ${nameColor}">${data.user}</span>` : ''}
-        <div class="msg-text">${data.text}</div>
-        <span class="time">${timeStr}</span>
-    `;
-    
-    chatDiv.appendChild(msgDiv);
-    chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
-
-    if (!isOwn) {
-        const audio = document.getElementById('notifSound');
-        audio.play().catch(e => {});
-        // ... bildirim kodları ...
-    }
-});
-function stringToColor(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-    return "#" + "00000".substring(0, 6 - c.length) + c;
-};
-// Mesaj Gönderme Fonksiyonu
 async function sendMessage() {
     const input = document.getElementById('msgInput');
-    const text = input.value.trim();
-    if(!text) return;
-
+    if(!input.value.trim()) return;
+    const data = { action: 'new', user: userName, text: input.value, id: Date.now().toString() };
     input.value = '';
+    await fetch('/api/send-message', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+}
 
-    try {
-        await fetch('/api/send-message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user: userName, text: text })
-        });
-    } catch (err) {
-        console.error("Mesaj gönderilemedi:", err);
-    }
+channel.bind('new-message', function(data) {
+    const isOwn = data.user === userName;
+    const msgHtml = `
+        <div class="msg ${isOwn ? 'own' : 'other'}" id="msg-${data.id}">
+            ${!isOwn ? `<span class="user-tag" style="color:${stringToColor(data.user)}">${data.user}</span>` : ''}
+            <div class="msg-text">${data.text}</div>
+            <div class="msg-footer">
+                <span class="time">${new Date().toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'})}</span>
+                ${isOwn ? `<div class="actions"><span onclick="editMsg('${data.id}')">✏️</span><span onclick="deleteMsg('${data.id}')">🗑️</span></div>` : ''}
+            </div>
+        </div>`;
+    document.getElementById('chat').insertAdjacentHTML('beforeend', msgHtml);
+    document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    if(!isOwn) document.getElementById('notifSound').play().catch(()=>{});
+});
+
+channel.bind('delete-message', d => document.getElementById(`msg-${d.id}`)?.remove());
+channel.bind('edit-message', d => {
+    const el = document.querySelector(`#msg-${d.id} .msg-text`);
+    if(el) el.innerText = d.text + " (düzenlendi)";
+});
+
+channel.bind('pusher:subscription_succeeded', m => document.getElementById('online-counter').innerText = "Online: " + m.count);
+channel.bind('pusher:member_added', () => document.getElementById('online-counter').innerText = "Online: " + channel.members.count);
+channel.bind('pusher:member_removed', () => document.getElementById('online-counter').innerText = "Online: " + channel.members.count);
+
+function deleteMsg(id) { if(confirm("Silinsin mi?")) fetch('/api/send-message', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action:'delete', id})}); }
+function editMsg(id) { 
+    const txt = prompt("Yeni mesaj:"); 
+    if(txt) fetch('/api/send-message', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action:'edit', id, text: txt})}); 
+}
+function addEmoji(e) { document.getElementById('msgInput').value += e; }
+function stringToColor(s) {
+    let h = 0; for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+    return `hsl(${Math.abs(h) % 360}, 70%, 75%)`;
 }

@@ -6,46 +6,24 @@
     --msg-own: linear-gradient(135deg, #7226fa, #4b10b3);
     --text-primary: #ffffff;
     --text-dim: #a1a1aa;
-    --header-h: 70px;
-    --input-h: 85px;
 }
 
 * { box-sizing: border-box; }
 
 body { 
-    font-family: 'Inter', -apple-system, sans-serif; 
+    font-family: 'Inter', sans-serif; 
     background: var(--bg-main); 
     color: var(--text-primary); 
     margin: 0; 
     display: flex; 
-    flex-direction: column; /* Mobilde dikey dizilim */
+    flex-direction: column; 
     height: 100vh; 
-    height: -webkit-fill-available; /* iOS Safari için tam ekran fix */
+    height: -webkit-fill-available;
     overflow: hidden; 
 }
 
-html { height: -webkit-fill-available; }
-
-/* Mobilde Sidebar'ı gizleyebilir veya küçültebiliriz */
-.sidebar {
-    display: none; /* Mobilde alanı daraltmamak için gizledik */
-}
-
-@media (min-width: 768px) {
-    body { flex-direction: row; }
-    .sidebar { display: flex; width: 60px; border-right: 1px solid #27272a; }
-}
-
-.main-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    position: relative;
-}
-
 header { 
-    height: var(--header-h);
+    height: 70px;
     padding: 0 20px; 
     background: rgba(20, 20, 24, 0.95);
     backdrop-filter: blur(10px);
@@ -56,126 +34,31 @@ header {
     z-index: 10;
 }
 
-.brand {
-    font-weight: 800;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+.brand { font-weight: 800; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.online-count { background: rgba(34, 197, 94, 0.15); color: #22c55e; padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; border: 1px solid rgba(34, 197, 94, 0.3); }
 
-.online-count {
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.7rem;
-    border: 1px solid rgba(34, 197, 94, 0.3);
-}
+#chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 
-#chat { 
-    flex: 1; 
-    overflow-y: auto; 
-    padding: 15px; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 10px;
-    padding-bottom: 20px;
-    -webkit-overflow-scrolling: touch; /* iOS kaydırma akıcılığı */
-}
-
-/* Mesaj Balonları Mobil Ayarı */
-.msg { 
-    padding: 10px 14px; 
-    border-radius: 16px; 
-    max-width: 85%; /* Mobilde biraz daha geniş yer kaplasın */
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
+.msg { padding: 10px 14px; border-radius: 16px; max-width: 80%; position: relative; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 .other { background: var(--msg-other); align-self: flex-start; border-bottom-left-radius: 4px; }
 .own { background: var(--msg-own); align-self: flex-end; border-bottom-right-radius: 4px; }
 
-/* Giriş Alanı - Mobil Sabitleme */
-.input-wrapper {
-    padding: 10px 15px;
-    background: var(--bg-main);
-    border-top: 1px solid #27272a;
-    padding-bottom: env(safe-area-inset-bottom); /* iPhone alt çubuk boşluğu */
-}
+.user-tag { font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 4px; }
+.msg-text { font-size: 0.95rem; line-height: 1.5; }
 
-.input-container { 
-    display: flex; 
-    background: #18181b; 
-    padding: 5px 10px; 
-    border-radius: 25px; /* Daha oval, modern bir görünüm */
-    border: 1px solid #27272a;
-    align-items: center;
-}
+.msg-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 5px; opacity: 0.6; font-size: 0.65rem; }
+.actions { display: flex; gap: 8px; }
+.actions span { cursor: pointer; }
 
-input { 
-    flex: 1; 
-    background: transparent;
-    border: none;
-    color: white;
-    padding: 10px;
-    outline: none;
-    font-size: 16px; /* 16px altı mobilde zoom yapar, o yüzden 16px şart */
-}
+.emoji-bar { display: flex; gap: 15px; padding: 10px 20px; background: #141418; border-top: 1px solid #27272a; overflow-x: auto; }
+.emoji-bar span { cursor: pointer; font-size: 1.2rem; }
 
-button#send-btn { 
-    background: var(--accent-color); 
-    color: white;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    font-weight: bold;
-    cursor: pointer;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.user-tag {
-    font-size: 0.85rem; /* Biraz daha büyük */
-    text-transform: none; 
-    letter-spacing: 0px;
-    margin-bottom: 4px;
-    display: block;
-    font-weight: 700; /* Daha kalın */
-    color: #a78bfa; /* Daha parlak bir mor/lila */
-    text-shadow: 0 0 5px rgba(0,0,0,0.5); /* Okunabilirlik için gölge */
-}
+.input-wrapper { padding: 10px 15px; background: var(--bg-main); border-top: 1px solid #27272a; padding-bottom: env(safe-area-inset-bottom); }
+.input-container { display: flex; background: #18181b; padding: 5px 10px; border-radius: 25px; border: 1px solid #27272a; align-items: center; }
+input { flex: 1; background: transparent; border: none; color: white; padding: 10px; outline: none; font-size: 16px; }
 
-/* Mesaj balonunun içindeki metin */
-.msg-text {
-    font-size: 0.95rem;
-    color: #ffffff;
-    word-break: break-word;
-}
-#notify-btn {
-    background: var(--accent-color);
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 0.8rem;
-    font-weight: 600;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-}
-.hidden-btn {
-    opacity: 0;
-    pointer-events: none;
-    transform: scale(0.8);
-}
-#notify-btn:active {
-    transform: scale(0.95);
-}
-
-#notify-btn.active {
-    background: #22c55e; /* Aktif olduğunda yeşil olur */
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-}
+button#send-btn { background: var(--accent-color); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; }
+#notify-btn { background: var(--accent-color); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+.hidden-btn { opacity: 0; pointer-events: none; }

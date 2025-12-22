@@ -3,23 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-	    <title>Barzo Chat</title>
+    <title>Barzo Chat</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
 </head>
 <body>
-    <div class="sidebar">
-        <div style="width: 35px; height: 35px; background: #7226fa; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">B</div>
-    </div>
-
     <div class="main-content">
         <header>
             <div class="brand">
                 Barzo Chat 
                 <span id="online-counter" class="online-count">Online: 0</span>
             </div>
-            <button id="notify-btn" onclick="initNotifications()">Sistemi Aktifleştir (Ses/Bildirim)</button>
+            <button id="notify-btn" onclick="initNotifications()">🔊 Sesi Aç</button>
         </header>
 
         <div id="chat"></div>
@@ -27,7 +23,7 @@
         <div class="input-wrapper">
             <div class="input-container">
                 <input type="text" id="msgInput" placeholder="Mevzuya gir..." onkeypress="if(event.key==='Enter') sendMessage()">
-                <button id="send-btn" onclick="sendMessage()">GÖNDER</button>
+                <button id="send-btn" onclick="sendMessage()">➤</button>
             </div>
         </div>
     </div>
@@ -36,81 +32,6 @@
         <source src="https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3" type="audio/mpeg">
     </audio>
 
-    <script>
-        let userName = localStorage.getItem('chatUser');
-        if (!userName) {
-            userName = prompt("Racon için bir isim gir:") || "Barzo_" + Math.floor(Math.random()*1000);
-            localStorage.setItem('chatUser', userName);
-        }
-
-        function initNotifications() {
-            Notification.requestPermission();
-            const audio = document.getElementById('notifSound');
-            audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(e => {});
-            document.getElementById('notify-btn').innerText = "SİSTEM AKTİF";
-            document.getElementById('notify-btn').style.background = "#22c55e";
-        }
-
-        // Pusher Auth Ayarı
-        const pusher = new Pusher('7c829d72a0184ee33bb3', { 
-            cluster: 'eu',
-            authEndpoint: '/api/pusher-auth',
-            auth: { params: { username: userName } }
-        });
-        
-        // Presence kanalı (Online takibi için)
-        const channel = pusher.subscribe('presence-chat');
-
-        // Online Sayısını Güncelleme
-        channel.bind('pusher:subscription_succeeded', (members) => {
-            document.getElementById('online-counter').innerText = "Online: " + members.count;
-        });
-
-        channel.bind('pusher:member_added', () => {
-            document.getElementById('online-counter').innerText = "Online: " + channel.members.count;
-        });
-
-        channel.bind('pusher:member_removed', () => {
-            document.getElementById('online-counter').innerText = "Online: " + channel.members.count;
-        });
-
-        // Mesaj Alma (Kanal ismi değiştiği için burayı da güncelledik)
-        channel.bind('new-message', function(data) {
-            const chatDiv = document.getElementById('chat');
-            const isOwn = data.user === userName;
-            const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `msg ${isOwn ? 'own' : 'other'}`;
-            msgDiv.innerHTML = `
-                ${!isOwn ? `<span class="user-tag">${data.user}</span>` : ''}
-                <div class="msg-text">${data.text}</div>
-                <span class="time">${timeStr}</span>
-            `;
-            
-            chatDiv.appendChild(msgDiv);
-            chatDiv.scrollTo({ top: chatDiv.scrollHeight, behavior: 'smooth' });
-
-            if (!isOwn) {
-                document.getElementById('notifSound').play().catch(e => {});
-                if (document.hidden && Notification.permission === "granted") {
-                    new Notification("Barzo'dan Mesaj", { body: data.user + ": " + data.text });
-                }
-            }
-        });
-
-        async function sendMessage() {
-            const input = document.getElementById('msgInput');
-            const text = input.value.trim();
-            if(!text) return;
-            input.value = '';
-
-            await fetch('/api/send-message', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user: userName, text: text })
-            });
-        }
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>

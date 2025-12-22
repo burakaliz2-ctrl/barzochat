@@ -139,8 +139,25 @@ button#send-btn {
 }
 
 #notify-btn {
-    background: #27272a;
-    font-size: 0.65rem;
-    padding: 6px 10px;
-    border-radius: 8px;
+    background: var(--accent-color); /* Mor renk */
+    color: white; /* Beyaz yazı */
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: transform 0.2s, background 0.2s;
+    box-shadow: 0 4px 12px rgba(114, 38, 250, 0.3);
+}
+#notify-btn:active {
+    transform: scale(0.95);
+}
+
+#notify-btn.active {
+    background: #22c55e; /* Aktif olduğunda yeşil olur */
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
 }

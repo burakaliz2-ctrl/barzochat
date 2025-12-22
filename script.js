@@ -16,7 +16,13 @@ function logout() {
         location.reload(); // Sayfayı yenile ve tekrar isim sor
     }
 }
-
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        document.body.style.height = window.visualViewport.height + 'px';
+        window.scrollTo(0, 0);
+        document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    });
+};
 // DOSYA GÖNDERME
 async function sendFile(input) {
     const file = input.files[0];

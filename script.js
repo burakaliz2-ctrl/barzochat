@@ -1,12 +1,19 @@
+// 1. OTURUM VE DEĞİŞKEN BAŞLATMA
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// Sayfa ilk açıldığında oturum kontrolü
-if (loggedInUser) {
-    showChat();
-}
+// Sayfa yüklendiğinde kontrol et
+document.addEventListener('DOMContentLoaded', () => {
+    if (loggedInUser) {
+        showChat();
+    } else {
+        document.getElementById('auth-screen').style.display = 'flex';
+        document.getElementById('chat-screen').style.display = 'none';
+    }
+});
 
+// 2. ÜYELİK İŞLEMLERİ (Giriş & Kayıt)
 async function auth(action) {
     const username = document.getElementById('auth-user').value.trim();
     const password = document.getElementById('auth-pass').value.trim();
@@ -23,28 +30,32 @@ async function auth(action) {
         
         if (res.ok) {
             if(action === 'login') {
-                localStorage.setItem('barzoUser', data.user.username);
-                loggedInUser = data.user.username;
-                location.reload(); // Temiz bir başlangıç için sayfayı yenile
+                localStorage.setItem('barzoUser', username);
+                loggedInUser = username;
+                location.reload(); // Sayfayı yenileyerek temiz kurulum yap
             } else {
-                alert("Kayıt başarılı, şimdi giriş yap!");
+                alert("Racon kesildi! Kayıt başarılı, şimdi giriş yap.");
             }
         } else {
-            alert(data.error);
+            alert(data.error || "İşlem başarısız");
         }
     } catch (err) {
-        alert("Bağlantı hatası!");
+        alert("Sunucuya bağlanılamadı!");
     }
 }
 
-function showChat() {
+// 3. CHAT EKRANINI GÖSTER VE VERİLERİ YÜKLE
+async function showChat() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'flex';
+    
     initPusher();
-    switchChat('general');
+    switchChat('general'); // İlk açılışta genel odayı yükle
 }
 
+// 4. PUSHER BAĞLANTISI VE DİNLEYİCİLER
 function initPusher() {
+    // Pusher kütüphanesinin yüklü olduğundan emin ol (HTML'de script tagı olmalı)
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
         authEndpoint: '/api/pusher-auth',
@@ -53,10 +64,26 @@ function initPusher() {
 
     presenceChannel = pusher.subscribe('presence-chat');
 
-    // Online Listesi Güncelleme
+    // Yeni mesaj geldiğinde
+    presenceChannel.bind('new-message', data => {
+        const isGeneral = data.target === 'general' && activeChat === 'general';
+        const isDM = (data.user === activeChat && data.target === loggedInUser) || 
+                     (data.user === loggedInUser && data.target === activeChat);
+
+        if (isGeneral || isDM) {
+            renderMessage(data);
+        }
+    });
+
+    // Online Listesi ve Sayaç Güncelleme
     const updateUI = () => {
         const listDiv = document.getElementById('user-list');
-        listDiv.innerHTML = `<div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">🌍 Genel Mevzu</div>`;
+        if(!listDiv) return;
+
+        listDiv.innerHTML = `
+            <div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">
+                <span class="status-dot online"></span> 🌍 Genel Mevzu
+            </div>`;
         
         presenceChannel.members.each(member => {
             if (member.id !== loggedInUser) {
@@ -66,41 +93,95 @@ function initPusher() {
                     </div>`);
             }
         });
+        
+        const counter = document.getElementById('online-counter');
+        if(counter) counter.innerText = presenceChannel.members.count;
     };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
     presenceChannel.bind('pusher:member_added', updateUI);
     presenceChannel.bind('pusher:member_removed', updateUI);
-
-    presenceChannel.bind('new-message', data => {
-        if (data.target === activeChat || (data.target === loggedInUser && data.user === activeChat)) {
-            renderMessage(data);
-        }
-    });
 }
 
-// Mesaj gönderme fonksiyonu (SendMessage)
+// 5. SOHBET DEĞİŞTİRME (GENEL VEYA DM)
+async function switchChat(target) {
+    activeChat = target;
+    document.getElementById('chat').innerHTML = '<div style="padding:20px; color:#aaa;">Yükleniyor...</div>';
+    
+    // Sidebar'daki aktiflik görselini güncelle
+    document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+    
+    try {
+        const res = await fetch(`/api/get-messages?dm=${target}&user=${loggedInUser}`);
+        const oldMsgs = await res.json();
+        
+        const chatDiv = document.getElementById('chat');
+        chatDiv.innerHTML = ''; 
+        
+        oldMsgs.forEach(m => {
+            renderMessage({ 
+                user: m.username, 
+                text: m.content, 
+                time: m.created_at,
+                id: m.id
+            });
+        });
+    } catch (err) {
+        console.error("Mesajlar yüklenemedi:", err);
+    }
+}
+
+// 6. MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const text = input.value.trim();
     if(!text) return;
-    
-    const payload = { action: 'new', user: loggedInUser, text: text, target: activeChat };
-    input.value = '';
+
+    input.value = ''; // Inputu hemen temizle
 
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ 
+            action: 'new', 
+            user: loggedInUser, 
+            text: text, 
+            target: activeChat,
+            id: Date.now().toString() 
+        })
     });
 }
 
+// 7. EKRANA BASMA (RENDER)
 function renderMessage(data) {
     const isOwn = data.user === loggedInUser;
-    const html = `<div class="msg ${isOwn ? 'own' : 'other'}">
-        <small>${data.user}</small>
-        <p>${data.text}</p>
-    </div>`;
-    document.getElementById('chat').insertAdjacentHTML('beforeend', html);
-    document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+    const chatDiv = document.getElementById('chat');
+    if(!chatDiv) return;
+
+    const html = `
+        <div class="msg ${isOwn ? 'own' : 'other'}" id="msg-${data.id}">
+            ${!isOwn ? `<span class="user-tag">${data.user}</span>` : ''}
+            <div class="msg-text">${data.text}</div>
+            <div class="msg-footer">
+                <span class="time">${new Date(data.time || Date.now()).toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'})}</span>
+            </div>
+        </div>`;
+
+    chatDiv.insertAdjacentHTML('beforeend', html);
+    chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+// 8. ÇIKIŞ YAPMA
+function logout() {
+    if(confirm("Mevzudan ayrılıyorsun, emin misin?")) {
+        localStorage.removeItem('barzoUser');
+        location.reload();
+    }
+}
+
+// Emoji ekleme
+function addEmoji(e) { 
+    const input = document.getElementById('msgInput');
+    input.value += e; 
+    input.focus();
 }

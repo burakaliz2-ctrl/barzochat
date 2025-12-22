@@ -77,29 +77,27 @@ function initPusher() {
 
     // Online Listesi ve Sayaç Güncelleme
 // script.js içindeki initPusher fonksiyonunun içindeki updateUI kısmını bununla değiştir:
-const updateUI = () => {
+	const updateUI = () => {
     const listDiv = document.getElementById('user-list');
-    if(!listDiv) return;
+    if (!listDiv) return;
 
+    // Genel odayı her zaman en başa ekle
     listDiv.innerHTML = `
         <div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">
             <span class="status-dot online"></span> 🌍 Genel Mevzu
         </div>`;
     
+    // Online kişileri dön
     presenceChannel.members.each(member => {
-        // member.id artık sayı değil, senin 'username' değerin olacak
-        const displayName = member.id; 
-        
-        if (displayName !== loggedInUser) {
+        // Eğer member.id undefined ise listeye ekleme
+        if (member.id && member.id !== "undefined" && member.id !== loggedInUser) {
+            const isSelected = activeChat === member.id ? 'active' : '';
             listDiv.insertAdjacentHTML('beforeend', `
-                <div class="user-item ${activeChat === displayName ? 'active' : ''}" onclick="switchChat('${displayName}')">
-                    <span class="status-dot online"></span> ${displayName}
+                <div class="user-item ${isSelected}" onclick="switchChat('${member.id}')">
+                    <span class="status-dot online"></span> ${member.id}
                 </div>`);
         }
     });
-    
-    const counter = document.getElementById('online-counter');
-    if(counter) counter.innerText = presenceChannel.members.count;
 };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);

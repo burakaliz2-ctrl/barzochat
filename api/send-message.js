@@ -11,17 +11,24 @@ const pusher = new Pusher({
 });
 
 export default async function handler(req, res) {
-    const { action, user, text, id, file, isImage } = req.body;
+    const { action, user, text, id, file, isImage, target } = req.body; // target eklendi
 
     if (action === 'new') {
-        // Turso'ya Kaydet
+        // 1. Turso'ya Kaydet (target sütunu ile birlikte)
         await db.execute({
-            sql: "INSERT INTO messages (username, content, file_url, is_image) VALUES (?, ?, ?, ?)",
-            args: [user, text, file || null, isImage ? 1 : 0]
+            sql: "INSERT INTO messages (username, content, file_url, is_image, target) VALUES (?, ?, ?, ?, ?)",
+            args: [user, text, file || null, isImage ? 1 : 0, target || 'general']
         });
 
-        // Pusher ile Dağıt
-        await pusher.trigger("presence-chat", "new-message", { user, text, id, file, isImage });
+        // 2. Pusher ile Dağıt (target bilgisini mutlaka ekle)
+        await pusher.trigger("presence-chat", "new-message", { 
+            user, 
+            text, 
+            id, 
+            file, 
+            isImage, 
+            target: target || 'general' 
+        });
     } else if (action === 'delete') {
         await db.execute({ sql: "DELETE FROM messages WHERE id = ?", args: [id] });
         await pusher.trigger("presence-chat", "delete-message", { id });

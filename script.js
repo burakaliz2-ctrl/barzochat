@@ -1,43 +1,3 @@
-// 1. Service Worker Kaydı (Hata ayıklama mesajları eklendi)
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-        console.log('Service Worker Kayıtlı ✅');
-    }).catch(err => {
-        console.error('Service Worker Kayıt Hatası (HTTPS mi?):', err);
-    });
-}
-
-// 2. Bildirim Gönderme (Tarayıcıyı zorlayan yöntem)
-function showTopNotification(data) {
-    if (!("Notification" in window)) return;
-
-    if (Notification.permission === "granted") {
-        navigator.serviceWorker.ready.then(registration => {
-            registration.showNotification(data.user, {
-                body: data.text,
-                icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
-                vibrate: [200, 100, 200],
-                badge: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
-                tag: 'chat-notification',
-                renotify: true // Her yeni mesajda tekrar titret/göster
-            });
-        });
-    } else if (Notification.permission !== "denied") {
-        // İzin verilmemişse tekrar iste
-        Notification.requestPermission();
-    }
-}
-
-// 3. Mesaj Geldiğinde Tetikleme
-// initPusher içindeki bind('new-message') kısmına şunu ekle:
-if (data.user !== loggedInUser) {
-    // Uygulama o an açık ve görünür olsa bile bildirimi fırlat (Test için)
-    showTopNotification(data);
-    
-    // Ses çalma (Önceki kodlarınla aynı)
-    notifySound.currentTime = 0;
-    notifySound.play().catch(() => {});
-};
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
@@ -45,14 +5,25 @@ let presenceChannel = null;
 // SES BİLDİRİMİ
 const notifySound = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3');
 
+// 1. SERVICE WORKER KAYDI (Siyah ekranı önlemek için try-catch içinde)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('Bildirim servisi aktif ✅'))
+            .catch(err => console.log('Bildirim servisi başlatılamadı (HTTPS eksik olabilir):', err));
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    if (loggedInUser && loggedInUser !== "undefined") showChat();
-    else if (document.getElementById('auth-screen')) document.getElementById('auth-screen').style.display = 'flex';
+    // EKRAN KONTROLÜ
+    if (loggedInUser && loggedInUser !== "undefined") {
+        showChat();
+    } else {
+        const auth = document.getElementById('auth-screen');
+        if (auth) auth.style.display = 'flex';
+    }
 
-    // BİLDİRİM İZNİ İSTE
-    requestNotificationPermission();
-
-    // ENTER TUŞU İLE GÖNDERME
+    // ENTER TUŞU DİNLEYİCİ
     const msgInput = document.getElementById('msgInput');
     if (msgInput) {
         msgInput.addEventListener('keypress', (e) => {
@@ -60,44 +31,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // SES KİLİDİNİ AÇMA
+    // SES KİLİDİNİ AÇMA (İlk tıklamada)
     const unlock = () => { 
         notifySound.play().then(() => { 
             notifySound.pause(); 
             notifySound.currentTime = 0; 
-        }).catch(e => console.log("Ses hazır değil")); 
+        }).catch(() => {}); 
         document.removeEventListener('click', unlock);
         document.removeEventListener('touchstart', unlock);
     };
     document.addEventListener('click', unlock);
     document.addEventListener('touchstart', unlock);
-});
 
-// BİLDİRİM İZNİ FONKSİYONU
-function requestNotificationPermission() {
-    if ("Notification" in window) {
+    // BİLDİRİM İZNİ İSTE
+    if ("Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
     }
-}
+});
 
-// ÜSTTEN BİLDİRİM GÖSTERME
+// BİLDİRİM GÖSTERME (Kayan Bildirim)
 function showTopNotification(data) {
-    if ("Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
-        const options = {
-            body: data.text,
-            icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png', // Örnek ikon
-            badge: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
-        };
-        const n = new Notification(data.user, options);
-        n.onclick = () => { window.focus(); n.close(); };
+    if ("Notification" in window && Notification.permission === "granted") {
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification(data.user, {
+                body: data.text,
+                icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
+                vibrate: [200, 100, 200],
+                tag: 'chat-msg',
+                renotify: true
+            });
+        });
     }
 }
 
+// EMOJI & SIDEBAR FONKSİYONLARI
 function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
 function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
 function addEmoji(emoji) { const input = document.getElementById('msgInput'); input.value += emoji; input.focus(); }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
+// MESAJI EKRANA YAZDIRMA (Saat ve ✓✓ Dahil)
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
@@ -114,11 +87,16 @@ function renderMessage(data) {
         </div>`;
     
     const c = document.getElementById('chat');
-    c.insertAdjacentHTML('beforeend', html);
-    c.scrollTop = c.scrollHeight;
+    if (c) {
+        c.insertAdjacentHTML('beforeend', html);
+        c.scrollTop = c.scrollHeight;
+    }
 }
 
+// PUSHER VE ÇEVRİMİÇİ LİSTESİ (Yeşil Nokta Dahil)
 function initPusher() {
+    if (!loggedInUser) return;
+    
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
         authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}`
@@ -134,16 +112,17 @@ function initPusher() {
             renderMessage(data);
         }
 
-        // BİLDİRİM VE SES (Mesaj başkasından geldiyse)
+        // SES VE BİLDİRİM (Başkasından geldiyse)
         if (data.user !== loggedInUser) {
             notifySound.currentTime = 0;
             notifySound.play().catch(() => {});
-            showTopNotification(data); // Üstten bildirim göster
+            showTopNotification(data);
         }
     });
 
     const updateUI = () => {
         const list = document.getElementById('user-list');
+        if (!list) return;
         list.innerHTML = `
             <div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">
                 <span class="online-dot"></span> 🌍 Genel Mevzu
@@ -157,7 +136,8 @@ function initPusher() {
                     </div>`);
             }
         });
-        document.getElementById('online-counter').innerText = presenceChannel.members.count;
+        const counter = document.getElementById('online-counter');
+        if (counter) counter.innerText = presenceChannel.members.count;
     };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
@@ -165,9 +145,10 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
+// MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
-    const val = input.value.trim();
+    const val = input ? input.value.trim() : "";
     if (!val) return;
     
     hideEmojiPicker();
@@ -182,30 +163,45 @@ async function sendMessage() {
     });
 }
 
+// SOHBET DEĞİŞTİRME
 async function switchChat(t) {
     activeChat = t;
-    document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
-    document.getElementById('chat').innerHTML = '';
-    if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
+    const title = document.getElementById('active-chat-title');
+    if (title) title.innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
+    
+    const chatBox = document.getElementById('chat');
+    if (chatBox) chatBox.innerHTML = '';
+    
+    if(window.innerWidth <= 768) {
+        const side = document.getElementById('sidebar');
+        if (side) side.classList.remove('open');
+    }
     
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
     const msgs = await res.json();
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
 }
 
+// LOGIN & LOGOUT
 function login() { 
-    const u = document.getElementById('username').value.trim(); 
-    if(u) { localStorage.setItem('barzoUser', u); location.reload(); } 
+    const uInput = document.getElementById('username');
+    const u = uInput ? uInput.value.trim() : ""; 
+    if(u) { 
+        localStorage.setItem('barzoUser', u); 
+        location.reload(); 
+    } 
 }
 
-function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
+function logout() { 
+    localStorage.removeItem('barzoUser'); 
+    location.reload(); 
+}
 
 function showChat() { 
-    document.getElementById('auth-screen').style.display='none'; 
-    document.getElementById('chat-screen').style.display='flex'; 
+    const auth = document.getElementById('auth-screen');
+    const chat = document.getElementById('chat-screen');
+    if (auth) auth.style.display = 'none';
+    if (chat) chat.style.display = 'flex'; 
     initPusher(); 
     switchChat('general'); 
 }
-
-
-

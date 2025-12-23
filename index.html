@@ -9,20 +9,25 @@
     <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 </head>
 <body>
-<div id="auth-screen">
+
+<div id="auth-screen" class="screen">
     <div class="auth-box">
         <h2>Barzo Chat</h2>
-        <input type="text" id="username" placeholder="Kullanıcı Adı">
-        <input type="password" id="password" placeholder="Şifre">
-        <button class="login-btn" onclick="login()">Giriş Yap</button>
-        <button class="register-btn" onclick="register()">Kayıt Ol</button>
+        <div class="input-group">
+            <input type="text" id="username" placeholder="Kullanıcı Adı" autocomplete="off">
+        </div>
+        <div class="input-group">
+            <input type="password" id="password" placeholder="Şifre" autocomplete="off">
+        </div>
+        <button class="login-btn" onclick="handleLogin()">Giriş Yap</button>
+        <button class="register-btn" onclick="handleRegister()">Kayıt Ol</button>
     </div>
 </div>
 
     <div id="chat-screen" style="display:none;">
         <div id="sidebar">
             <div class="sidebar-header">
-                <h3>Kişiler</h3>
+                <h3>Kişiler (<span id="online-counter">0</span>)</h3>
             </div>
             <div id="user-list"></div>
             <div class="sidebar-footer">
@@ -35,21 +40,17 @@
                 <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
                 <h2 id="active-chat-title">Genel Mevzu</h2>
             </header>
-
             <div id="chat"></div>
             <div id="typing-indicator"></div>
-
             <div class="bottom-area">
                 <div class="input-container">
-                    <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📷</button>
-                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
                     <input type="text" id="msgInput" placeholder="Mesajını yaz..." autocomplete="off">
                     <button id="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
         </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
-

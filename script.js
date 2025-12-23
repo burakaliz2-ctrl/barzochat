@@ -1,26 +1,26 @@
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
-let pressTimer;
 
-// SES BİLDİRİMİ (Tarayıcı uyumlu, net bildirim sesi)
+// SES BİLDİRİMİ
 const notifySound = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3');
 
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") showChat();
     else if (document.getElementById('auth-screen')) document.getElementById('auth-screen').style.display = 'flex';
 
+    // BİLDİRİM İZNİ İSTE
+    requestNotificationPermission();
+
     // ENTER TUŞU İLE GÖNDERME
     const msgInput = document.getElementById('msgInput');
     if (msgInput) {
         msgInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+            if (e.key === 'Enter') sendMessage();
         });
     }
 
-    // SES KİLİDİNİ AÇMA (Garantili Yöntem)
+    // SES KİLİDİNİ AÇMA
     const unlock = () => { 
         notifySound.play().then(() => { 
             notifySound.pause(); 
@@ -33,27 +33,31 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('touchstart', unlock);
 });
 
-// EMOJI & SIDEBAR FONKSİYONLARI
-function toggleEmojiPicker(e) { 
-    e.stopPropagation(); 
-    document.getElementById('custom-emoji-picker').classList.toggle('show'); 
+// BİLDİRİM İZNİ FONKSİYONU
+function requestNotificationPermission() {
+    if ("Notification" in window) {
+        Notification.requestPermission();
+    }
 }
 
-function hideEmojiPicker() { 
-    document.getElementById('custom-emoji-picker').classList.remove('show'); 
+// ÜSTTEN BİLDİRİM GÖSTERME
+function showTopNotification(data) {
+    if ("Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
+        const options = {
+            body: data.text,
+            icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png', // Örnek ikon
+            badge: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
+        };
+        const n = new Notification(data.user, options);
+        n.onclick = () => { window.focus(); n.close(); };
+    }
 }
 
-function addEmoji(emoji) { 
-    const input = document.getElementById('msgInput'); 
-    input.value += emoji; 
-    input.focus(); 
-}
+function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
+function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
+function addEmoji(emoji) { const input = document.getElementById('msgInput'); input.value += emoji; input.focus(); }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-function toggleSidebar() { 
-    document.getElementById('sidebar').classList.toggle('open'); 
-}
-
-// MESAJI EKRANA YAZDIRMA (Saat ve Mavi Tık Dahil)
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
@@ -74,7 +78,6 @@ function renderMessage(data) {
     c.scrollTop = c.scrollHeight;
 }
 
-// PUSHER VE ÇEVRİMİÇİ LİSTESİ (Yeşil Nokta Dahil)
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
@@ -83,18 +86,19 @@ function initPusher() {
     presenceChannel = pusher.subscribe('presence-chat');
 
     presenceChannel.bind('new-message', data => {
-        const canRender = (data.target === 'general' && activeChat === 'general') || 
-                          (data.user === activeChat && data.target === loggedInUser) || 
-                          (data.user === loggedInUser && data.target === activeChat);
-        if (canRender) {
+        const isGeneral = data.target === 'general';
+        const isDirect = (data.user === activeChat && data.target === loggedInUser) || 
+                         (data.user === loggedInUser && data.target === activeChat);
+        
+        if ((isGeneral && activeChat === 'general') || isDirect) {
             renderMessage(data);
-            if (data.user !== loggedInUser) {
-                notifySound.currentTime = 0;
-                notifySound.play().catch(() => {});
-            }
-        } else if (data.user !== loggedInUser) {
+        }
+
+        // BİLDİRİM VE SES (Mesaj başkasından geldiyse)
+        if (data.user !== loggedInUser) {
             notifySound.currentTime = 0;
             notifySound.play().catch(() => {});
+            showTopNotification(data); // Üstten bildirim göster
         }
     });
 
@@ -121,7 +125,6 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
@@ -139,7 +142,6 @@ async function sendMessage() {
     });
 }
 
-// SOHBET DEĞİŞTİRME
 async function switchChat(t) {
     activeChat = t;
     document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
@@ -156,10 +158,7 @@ function login() {
     if(u) { localStorage.setItem('barzoUser', u); location.reload(); } 
 }
 
-function logout() { 
-    localStorage.removeItem('barzoUser'); 
-    location.reload(); 
-}
+function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
 
 function showChat() { 
     document.getElementById('auth-screen').style.display='none'; 

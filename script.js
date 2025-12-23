@@ -2,37 +2,37 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 let touchStartX = 0;
+let typingTimeout = null;
 
-// 1. SERVICE WORKER KAYDI (Bildirimler için şart)
+// 1. SENİN SON HALİNDEKİ SERVICE WORKER KAYDI
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').then(reg => {
-        console.log("SW Aktif");
-    }).catch(err => console.error("SW Hatası:", err));
+        console.log("Service Worker aktif.");
+    }).catch(err => console.error("SW Kayıt Hatası:", err));
 }
 
-// 2. BİLDİRİM GÖSTERME FONKSİYONU
+// 2. SENİN SON HALİNDEKİ BİLDİRİM FONKSİYONU
 function showNotification(data) {
-    if (Notification.permission !== "granted" || data.user === loggedInUser) return;
-
-    // Eğer o an o sohbetteysek bildirim çıkarma
-    const isVisible = (data.target === 'general' && activeChat === 'general') || 
-                      (data.user === activeChat && data.target === loggedInUser);
-    
-    if (!isVisible) {
-        navigator.serviceWorker.ready.then(reg => {
-            reg.showNotification(data.user, {
-                body: data.text || data.content || "Yeni bir mesajınız var",
-                icon: '/icon.png',
-                tag: 'chat-msg',
-                renotify: true
-            });
+    if (Notification.permission !== "granted") return;
+    if (data.user === loggedInUser) return;
+    navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(data.user || "Yeni Mesaj", {
+            body: data.text || data.content || "Bir resim veya mesaj gönderdi",
+            icon: '/icon.png',
+            tag: 'chat-notification',
+            renotify: true
         });
-    }
+    });
 }
 
-// 3. KAYDIRMA (SWIPE) KONTROLÜ
-document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
-document.addEventListener('touchend', e => {
+// 3. YAZIYOR... EVENTİ (Yeni)
+function sendTypingEvent() {
+    if (presenceChannel) presenceChannel.trigger('client-typing', { user: loggedInUser, target: activeChat });
+}
+
+// 4. KAYDIRMA (Senin Son Halindeki Mantık)
+document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+document.addEventListener('touchend', (e) => {
     const diff = e.changedTouches[0].screenX - touchStartX;
     const sidebar = document.getElementById('sidebar');
     if (diff > 80 && touchStartX < 70) sidebar?.classList.add('open');
@@ -41,39 +41,7 @@ document.addEventListener('touchend', e => {
 
 function toggleSidebar() { document.getElementById('sidebar')?.classList.toggle('open'); }
 
-// 4. MESAJ GÖNDERME VE BASMA
-async function sendMessage() {
-    const input = document.getElementById('msgInput');
-    const val = input.value.trim();
-    if (!val) return;
-    const id = "msg-" + Date.now();
-    renderMessage({ user: loggedInUser, text: val, id: id });
-    input.value = '';
-    await fetch('/api/send-message', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'new', user: loggedInUser, text: val, target: activeChat, id: id })
-    });
-}
-
-function renderMessage(data) {
-    if (!data.id || document.getElementById(data.id)) return;
-    const isOwn = data.user === loggedInUser;
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const content = data.text || data.content || "";
-    const html = `
-        <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
-            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold; display:block; margin-bottom:2px;">${data.user}</small>` : ''}
-            <span>${content}</span>
-            <div style="text-align:right; font-size:10px; opacity:0.6; margin-top:2px;">
-                ${time} ${isOwn ? '✓✓' : ''}
-            </div>
-        </div>`;
-    const c = document.getElementById('chat');
-    if (c) { c.insertAdjacentHTML('beforeend', html); c.scrollTop = c.scrollHeight; }
-}
-
-// 5. PUSHER VE KİŞİ LİSTESİ
+// 5. PUSHER VE ETKİLEŞİMLER (Senin Son Halindeki Bind'lar)
 function initPusher() {
     if (!loggedInUser) return;
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
@@ -84,23 +52,27 @@ function initPusher() {
     presenceChannel.bind('new-message', d => {
         const isGeneral = d.target === 'general';
         const isDirect = (d.user === activeChat && d.target === loggedInUser) || (d.user === loggedInUser && d.target === activeChat);
-        
-        if ((isGeneral && activeChat === 'general') || isDirect) {
-            renderMessage(d);
+        if ((isGeneral && activeChat === 'general') || isDirect) renderMessage(d);
+        showNotification(d); // Bildirimi tetikle
+    });
+
+    presenceChannel.bind('client-typing', d => {
+        if (d.user !== loggedInUser && d.target === activeChat) {
+            const ind = document.getElementById('typing-indicator');
+            if(ind) {
+                ind.innerText = `${d.user} yazıyor...`;
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => ind.innerText = '', 3000);
+            }
         }
-        // BİLDİRİMİ TETİKLE
-        showNotification(d);
     });
 
     const updateUI = () => {
         const list = document.getElementById('user-list');
         if (!list) return;
-        list.innerHTML = `<div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')"><span class="online-dot"></span> 🌍 Genel Mevzu</div>`;
+        list.innerHTML = `<div class="user-item" onclick="switchChat('general')"><span class="online-dot"></span> 🌍 Genel Mevzu</div>`;
         presenceChannel.members.each(m => {
-            if (m.id && m.id !== loggedInUser) {
-                list.insertAdjacentHTML('beforeend', `<div class="user-item ${activeChat === m.id ? 'active' : ''}" onclick="switchChat('${m.id}')">
-                    <span class="online-dot"></span> ${m.id}</div>`);
-            }
+            if (m.id && m.id !== loggedInUser) list.insertAdjacentHTML('beforeend', `<div class="user-item" onclick="switchChat('${m.id}')"><span class="online-dot"></span> ${m.id}</div>`);
         });
     };
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
@@ -108,7 +80,52 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// 6. BAŞLATMA
+// 6. MESAJ GÖNDERME VE RESİM İŞLEME
+async function sendMessage() {
+    const input = document.getElementById('msgInput');
+    const val = input.value.trim();
+    if (!val) return;
+    const id = "msg-" + Date.now();
+    renderMessage({ user: loggedInUser, text: val, id: id });
+    input.value = '';
+    await fetch('/api/send-message', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'new', user: loggedInUser, text: val, target: activeChat, id: id })
+    });
+}
+
+async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        const base64 = ev.target.result;
+        const id = "msg-" + Date.now();
+        renderMessage({ user: loggedInUser, image: base64, id: id });
+        await fetch('/api/send-message', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'new', user: loggedInUser, image: base64, target: activeChat, id: id })
+        });
+    };
+    reader.readAsDataURL(file);
+}
+
+function renderMessage(data) {
+    if (!data.id || document.getElementById(data.id)) return;
+    const isOwn = data.user === loggedInUser;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let content = data.text || data.content || "";
+    if (data.image) content = `<img src="${data.image}" onclick="window.open(this.src)">`;
+
+    const html = `<div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
+        ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold; display:block; margin-bottom:2px;">${data.user}</small>` : ''}
+        <span>${content}</span>
+        <div style="text-align:right; font-size:10px; opacity:0.6; margin-top:2px;">${time} ${isOwn ? '✓✓' : ''}</div>
+    </div>`;
+    const c = document.getElementById('chat');
+    if (c) { c.insertAdjacentHTML('beforeend', html); c.scrollTop = c.scrollHeight; }
+}
+
 async function switchChat(id) {
     activeChat = id;
     document.getElementById('sidebar')?.classList.remove('open');
@@ -116,8 +133,10 @@ async function switchChat(id) {
     document.getElementById('chat').innerHTML = '';
     const res = await fetch(`/api/get-messages?dm=${id}&user=${loggedInUser}`);
     const msgs = await res.json();
-    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
+    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id, image: m.image }));
 }
+
+function login() { const u = document.getElementById('username').value.trim(); if(u) { localStorage.setItem('barzoUser', u); location.reload(); } }
 
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") {
@@ -126,7 +145,11 @@ document.addEventListener('DOMContentLoaded', () => {
         initPusher(); switchChat('general');
         if (Notification.permission === "default") Notification.requestPermission();
     }
-    document.getElementById('msgInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('msgInput')?.addEventListener('keypress', e => { 
+        sendTypingEvent(); 
+        if (e.key === 'Enter') sendMessage(); 
+    });
     document.getElementById('send-btn')?.addEventListener('click', sendMessage);
+    document.getElementById('fileInput')?.addEventListener('change', handleFileUpload);
     document.querySelector('.logout-btn')?.addEventListener('click', () => { localStorage.removeItem('barzoUser'); location.reload(); });
 });

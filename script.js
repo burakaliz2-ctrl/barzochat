@@ -3,18 +3,18 @@ let activeChat = 'general';
 let presenceChannel = null;
 let deferredPrompt;
 
-// 1. SW ve Kayıtlar
+// SW ve Kayıtlar
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=7').then(reg => reg.update());
+        navigator.serviceWorker.register('/sw.js?v=8').then(reg => reg.update());
     });
 }
 
-// 2. KAYDIRMA (SWIPE) ÖZELLİĞİ
+// 1. KAYDIRMA (SWIPE) ÖZELLİĞİ
 let touchStartX = 0;
 let touchEndX = 0;
-document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, false);
-document.addEventListener('touchend', (e) => { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }, false);
+document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+document.addEventListener('touchend', (e) => { touchEndX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
 
 function handleSwipe() {
     const swipeDistance = touchEndX - touchStartX;
@@ -23,46 +23,50 @@ function handleSwipe() {
     if (swipeDistance < -70) sidebar?.classList.remove('open');
 }
 
-// 3. EMOJI SİSTEMİ (Çoklu Seçim Fix)
+// 2. EMOJI SİSTEMİ (KESİN ÇÖZÜM)
 function toggleEmojiPicker(e) { 
     if(e) e.stopPropagation(); 
     const picker = document.getElementById('custom-emoji-picker');
     picker?.classList.toggle('show');
 }
 
-function addEmoji(emoji) { 
+// event parametresini ekledik ki tıklamanın yayılmasını durduralım
+function addEmoji(emoji, event) { 
+    if(event) event.stopPropagation(); // Tıklamanın dışarı sızmasını engelle
+    
     const input = document.getElementById('msgInput'); 
     if(input) { 
         input.value += emoji; 
         input.focus(); 
     }
-    // Burada asla hideEmojiPicker() çağrılmıyor!
+    // Burada kapatma komutu yok, panel açık kalır.
 }
 
 function hideEmojiPicker() { 
     document.getElementById('custom-emoji-picker')?.classList.remove('show'); 
 }
 
-// EKranın boş yerine tıklandığında kapatma kontrolü (Emoji paneli hariç)
+// Ekranın boş yerine tıklandığında kapatma kontrolü
 document.addEventListener('click', (e) => {
     const picker = document.getElementById('custom-emoji-picker');
-    const emojiBtn = document.querySelector('.emoji-btn'); // HTML'deki emoji butonu class'ın
+    const emojiBtn = document.querySelector('.emoji-btn');
     
-    // Eğer tıklanan yer picker'ın kendisi DEĞİLSE ve emoji butonu DEĞİLSE kapat
+    // Eğer tıklanan yer picker'ın kendisi veya içindeki bir öğe değilse 
+    // VE tıklanan yer emoji açma butonu değilse kapat
     if (picker && picker.classList.contains('show')) {
-        if (!picker.contains(e.target) && e.target !== emojiBtn && !emojiBtn?.contains(e.target)) {
+        if (!picker.contains(e.target) && e.target !== emojiBtn) {
             hideEmojiPicker();
         }
     }
 });
 
-// 4. MESAJ VE DİĞER FONKSİYONLAR
+// 3. MESAJ VE DİĞER FONKSİYONLAR
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input ? input.value.trim() : "";
     if (!val) return;
     
-    hideEmojiPicker(); // Sadece mesaj gönderince kapat
+    hideEmojiPicker(); // Mesaj gönderince paneli kapat
     
     const messageId = "msg-" + Date.now();
     renderMessage({ user: loggedInUser, text: val, id: messageId });
@@ -75,6 +79,7 @@ async function sendMessage() {
     });
 }
 
+// --- DİĞER STANDART FONKSİYONLAR ---
 function toggleSidebar() { document.getElementById('sidebar')?.classList.toggle('open'); }
 function closeSidebar() { document.getElementById('sidebar')?.classList.remove('open'); }
 
@@ -145,7 +150,7 @@ function showChat() {
 
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") showChat();
-    else document.getElementById('auth-screen').style.display = 'flex';
+    else if(document.getElementById('auth-screen')) document.getElementById('auth-screen').style.display = 'flex';
     
     document.getElementById('msgInput')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
     if (Notification.permission === "default") Notification.requestPermission();

@@ -1,47 +1,40 @@
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
-let pressTimer;
 
-// SES BİLDİRİMİ
 const notifySound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
 
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") showChat();
     else document.getElementById('auth-screen').style.display = 'flex';
 
-    // Ses Kilidini Açma (İlk etkileşimde)
-    const unlockAudio = () => {
-        notifySound.play().then(() => { notifySound.pause(); notifySound.currentTime = 0; }).catch(() => {});
-        document.removeEventListener('click', unlockAudio);
-        document.removeEventListener('touchstart', unlockAudio);
-    };
-    document.addEventListener('click', unlockAudio);
-    document.addEventListener('touchstart', unlockAudio);
+    const unlock = () => { notifySound.play().then(() => { notifySound.pause(); notifySound.currentTime=0; }); document.removeEventListener('click', unlock); };
+    document.addEventListener('click', unlock);
 });
 
-// EMOJI PANELİ MANTIĞI
-function toggleEmojiPicker(e) {
-    if (e) e.stopPropagation();
-    document.getElementById('custom-emoji-picker').classList.toggle('show');
-}
-
-function hideEmojiPicker() {
-    document.getElementById('custom-emoji-picker').classList.remove('show');
-}
-
-function addEmoji(emoji) {
-    const input = document.getElementById('msgInput');
-    input.value += emoji;
-    input.focus();
-}
-
-// SIDEBAR VE SES
+function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
+function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
+function addEmoji(emoji) { const input = document.getElementById('msgInput'); input.value += emoji; input.focus(); }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-function playNotify() {
-    notifySound.currentTime = 0;
-    notifySound.play().catch(err => console.log("Ses hatası:", err));
+function renderMessage(data) {
+    if (!data.id || document.getElementById(data.id)) return;
+    const isOwn = data.user === loggedInUser;
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    const html = `
+        <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
+            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold;">${data.user}</small>` : ''}
+            <span>${data.text}</span>
+            <div class="msg-info">
+                <span class="msg-time">${time}</span>
+                ${isOwn ? `<span class="tick">✓✓</span>` : ''}
+            </div>
+        </div>`;
+    
+    const c = document.getElementById('chat');
+    c.insertAdjacentHTML('beforeend', html);
+    c.scrollTop = c.scrollHeight;
 }
 
 function initPusher() {
@@ -57,22 +50,17 @@ function initPusher() {
                           (data.user === loggedInUser && data.target === activeChat);
         if (canRender) {
             renderMessage(data);
-            if (data.user !== loggedInUser) playNotify();
+            if (data.user !== loggedInUser) { notifySound.currentTime=0; notifySound.play(); }
         } else if (data.user !== loggedInUser) {
-            playNotify(); // Başka odadayken bildirim sesi
+            notifySound.currentTime=0; notifySound.play();
         }
-    });
-
-    presenceChannel.bind('delete-message', data => {
-        const el = document.getElementById(data.id);
-        if (el) el.remove();
     });
 
     const updateUI = () => {
         const list = document.getElementById('user-list');
         list.innerHTML = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Mevzu</div>`;
         presenceChannel.members.each(m => {
-            if (m.id && m.id !== "undefined" && m.id !== loggedInUser) {
+            if (m.id && m.id !== loggedInUser) {
                 list.insertAdjacentHTML('beforeend', `<div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')">● ${m.id}</div>`);
             }
         });
@@ -83,44 +71,13 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ SİLME (BASILI TUTMA)
-function startPress(id) { pressTimer = setTimeout(() => { if (confirm("Silinsin mi?")) deleteMessage(id); }, 800); }
-function endPress() { clearTimeout(pressTimer); }
-async function deleteMessage(id) {
-    const cleanId = id.replace('msg-', '');
-    await fetch('/api/send-message', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'delete', id: cleanId })
-    });
-}
-
-function renderMessage(data) {
-    if (!data.id || !data.text || document.getElementById(data.id)) return;
-    const isOwn = data.user === loggedInUser;
-    const msgId = data.id.startsWith('msg-') ? data.id : 'msg-' + data.id;
-    const html = `
-        <div id="${msgId}" class="msg ${isOwn ? 'own' : 'other'}" 
-             onmousedown="startPress('${msgId}')" onmouseup="endPress()"
-             ontouchstart="startPress('${msgId}')" ontouchend="endPress()">
-            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7;">${data.user}</small>` : ''}
-            <div style="display:flex; align-items:flex-end; gap:5px;">
-                <span>${data.text}</span>
-                ${isOwn ? `<span class="tick" style="font-size:9px; opacity:0.6;">✓✓</span>` : ''}
-            </div>
-        </div>`;
-    const c = document.getElementById('chat');
-    c.insertAdjacentHTML('beforeend', html);
-    c.scrollTop = c.scrollHeight;
-}
-
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
     if (!val) return;
     hideEmojiPicker();
     const messageId = "msg-" + Date.now();
-    renderMessage({ user: loggedInUser, text: val, target: activeChat, id: messageId });
+    renderMessage({ user: loggedInUser, text: val, id: messageId });
     input.value = '';
     await fetch('/api/send-message', {
         method: 'POST',
@@ -136,13 +93,9 @@ async function switchChat(t) {
     if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
     const msgs = await res.json();
-    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id, isHistory: true }));
+    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
 }
 
+function login() { const u = document.getElementById('username').value.trim(); if(u) { localStorage.setItem('barzoUser', u); location.reload(); } }
 function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
-function showChat() {
-    document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('chat-screen').style.display = 'flex';
-    initPusher();
-    switchChat('general');
-}
+function showChat() { document.getElementById('auth-screen').style.display='none'; document.getElementById('chat-screen').style.display='flex'; initPusher(); switchChat('general'); }

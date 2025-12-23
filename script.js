@@ -8,10 +8,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") showChat();
     else document.getElementById('auth-screen').style.display = 'flex';
 
-    const unlock = () => { notifySound.play().then(() => { notifySound.pause(); notifySound.currentTime=0; }); document.removeEventListener('click', unlock); };
+    const unlock = () => { 
+        notifySound.play().then(() => { notifySound.pause(); notifySound.currentTime = 0; }); 
+        document.removeEventListener('click', unlock); 
+    };
     document.addEventListener('click', unlock);
 });
 
+// EMOJI & SIDEBAR FONKSIYONLARI
 function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
 function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
 function addEmoji(emoji) { const input = document.getElementById('msgInput'); input.value += emoji; input.focus(); }
@@ -24,7 +28,7 @@ function renderMessage(data) {
     
     const html = `
         <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
-            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold;">${data.user}</small>` : ''}
+            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold; margin-bottom:2px;">${data.user}</small>` : ''}
             <span>${data.text}</span>
             <div class="msg-info">
                 <span class="msg-time">${time}</span>

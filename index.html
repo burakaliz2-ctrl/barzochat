@@ -38,6 +38,16 @@
             <div id="chat"></div>
                 <div class="input-container">
                     <input type="text" id="msgInput" placeholder="Mesajını yaz..." >
+                    <div id="typing-indicator"></div>
+                    <div class="bottom-area">
+                    <div class="input-container">
+                    <button class="attach-btn" onclick="document.getElementById('fileInput').click()" title="Resim Gönder">📷</button>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        <input type="text" id="msgInput" placeholder="Mesajını yaz..." autocomplete="off">
+        
+        <button id="send-btn">➤</button>
+    </div>
+</div>
                     <button id="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
@@ -46,6 +56,7 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 
 
 

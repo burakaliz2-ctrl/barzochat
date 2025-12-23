@@ -1,47 +1,58 @@
-// 1. TEMEL DEĞİŞKENLER (Kayıtlı bilgilerden alınmıştır)
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
-
-// 2. KAYDIRMA (SWIPE) ÖZELLİĞİ - SOLA KAYDIRINCA KESİN KAPANIR
 let touchStartX = 0;
 
+// 1. SERVICE WORKER & BİLDİRİM İZNİ (Yeni Eklendi)
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('SW Kayıtlı');
+            reg.update();
+        });
+    });
+}
+
+function showNotification(data) {
+    // Sadece ekran kapalıyken veya başka bir sohbetteyken bildirim gönder
+    const isThisChat = (data.target === 'general' && activeChat === 'general') || 
+                       (data.user === activeChat && data.target === loggedInUser);
+
+    if (Notification.permission === "granted" && !isThisChat) {
+        navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(data.user, {
+                body: data.text,
+                icon: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png', // Logo yolunu kontrol et
+                tag: 'chat-msg',
+                renotify: true
+            });
+        });
+    }
+}
+
+// 2. SWIPE (KAYDIRMA) KONTROLÜ
 document.addEventListener('touchstart', (e) => { 
     touchStartX = e.changedTouches[0].screenX; 
 }, {passive: true});
 
 document.addEventListener('touchend', (e) => {
-    const touchEndX = e.changedTouches[0].screenX;
-    const diff = touchEndX - touchStartX;
+    const diff = e.changedTouches[0].screenX - touchStartX;
     const sidebar = document.getElementById('sidebar');
-
     if (!sidebar) return;
-
-    // Sağa kaydır (Aç): Ekranın sol kenarından çekilirse
-    if (diff > 80 && touchStartX < 70) {
-        sidebar.classList.add('open');
-    }
-    // Sola kaydır (Kapat): Sidebar açıkken sola çekilirse
-    if (diff < -80 && sidebar.classList.contains('open')) {
-        sidebar.classList.remove('open');
-    }
+    if (diff > 80 && touchStartX < 70) sidebar.classList.add('open');
+    if (diff < -80 && sidebar.classList.contains('open')) sidebar.classList.remove('open');
 }, {passive: true});
 
-// 3. MENÜYÜ BUTONLA AÇIP KAPATMA
+// 3. TEMEL FONKSİYONLAR
 function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.classList.toggle('open');
+    document.getElementById('sidebar')?.classList.toggle('open');
 }
 
-// 4. SOHBET GEÇİŞİ (Menüyü Kapatarak)
 async function switchChat(userId) {
     activeChat = userId;
-    const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.classList.remove('open'); // Menüyü kapat
-    
+    document.getElementById('sidebar')?.classList.remove('open');
     const title = document.getElementById('active-chat-title');
     if (title) title.innerText = userId === 'general' ? 'Genel Mevzu' : `👤 ${userId}`;
-    
     const chatBox = document.getElementById('chat');
     if (chatBox) chatBox.innerHTML = '';
     
@@ -49,15 +60,13 @@ async function switchChat(userId) {
         const res = await fetch(`/api/get-messages?dm=${userId}&user=${loggedInUser}`);
         const msgs = await res.json();
         msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
-    } catch (err) { console.error("Hata:", err); }
+    } catch (err) { console.log(err); }
 }
 
-// 5. MESAJLARI EKRANA BASMA
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
     const html = `
         <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
             ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold; display:block; margin-bottom:2px;">${data.user}</small>` : ''}
@@ -67,7 +76,6 @@ function renderMessage(data) {
                 ${isOwn ? `<span class="tick"> ✓✓</span>` : ''}
             </div>
         </div>`;
-        
     const c = document.getElementById('chat');
     if (c) {
         c.insertAdjacentHTML('beforeend', html);
@@ -75,16 +83,13 @@ function renderMessage(data) {
     }
 }
 
-// 6. MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input ? input.value.trim() : "";
     if (!val) return;
-    
     const messageId = "msg-" + Date.now();
     renderMessage({ user: loggedInUser, text: val, id: messageId });
     input.value = '';
-    
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -92,64 +97,58 @@ async function sendMessage() {
     });
 }
 
-// 7. PUSHER BAĞLANTISI (Kayıtlı bilgiler: 2025-12-12)
+// 4. PUSHER & BİLDİRİM TETİKLEME
 function initPusher() {
     if (!loggedInUser) return;
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu', 
         authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}` 
     });
-    
     presenceChannel = pusher.subscribe('presence-chat');
     
-    presenceChannel.bind('new-message', data => {
-        const isGeneral = data.target === 'general';
-        const isDirect = (data.user === activeChat && data.target === loggedInUser) || 
-                         (data.user === loggedInUser && data.target === activeChat);
-        if ((isGeneral && activeChat === 'general') || isDirect) renderMessage(data);
+    presenceChannel.bind('new-message', d => {
+        const isGeneral = d.target === 'general';
+        const isDirect = (d.user === activeChat && d.target === loggedInUser) || (d.user === loggedInUser && d.target === activeChat);
+        
+        // Mesajı ekrana bas
+        if ((isGeneral && activeChat === 'general') || isDirect) renderMessage(d);
+        
+        // BİLDİRİM GÖNDER (Mesaj benden değilse)
+        if (d.user !== loggedInUser) {
+            showNotification(d);
+        }
     });
 
     const updateUI = () => {
         const list = document.getElementById('user-list');
         if (!list) return;
-        list.innerHTML = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')"><span class="online-dot"></span> 🌍 Genel Mevzu</div>`;
-        
+        list.innerHTML = `<div class="user-item" onclick="switchChat('general')"><span class="online-dot"></span> 🌍 Genel Mevzu</div>`;
         presenceChannel.members.each(m => {
-            if (m.id && m.id !== loggedInUser) {
-                list.insertAdjacentHTML('beforeend', `
-                    <div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')">
-                        <span class="online-dot"></span> ${m.id}
-                    </div>`);
-            }
+            if (m.id && m.id !== loggedInUser) list.insertAdjacentHTML('beforeend', `<div class="user-item" onclick="switchChat('${m.id}')"><span class="online-dot"></span> ${m.id}</div>`);
         });
     };
-
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
     presenceChannel.bind('pusher:member_added', updateUI);
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// 8. BAŞLATMA VE EKRAN KONTROLÜ (Siyah Ekranı Önleyen Bölüm)
-function login() { 
-    const u = document.getElementById('username').value.trim(); 
-    if(u) { localStorage.setItem('barzoUser', u); location.reload(); } 
-}
-
+// 5. BAŞLATMA
 document.addEventListener('DOMContentLoaded', () => {
-    const authScreen = document.getElementById('auth-screen');
-    const chatScreen = document.getElementById('chat-screen');
-
     if (loggedInUser && loggedInUser !== "undefined") {
-        if (authScreen) authScreen.style.display = 'none';
-        if (chatScreen) chatScreen.style.display = 'flex'; // CSS ile uyumlu Flex yapısı
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('chat-screen').style.display = 'flex';
         initPusher(); 
         switchChat('general');
+        
+        // Bildirim İzni İste
+        if (Notification.permission === "default") {
+            Notification.requestPermission();
+        }
     } else {
-        if (authScreen) authScreen.style.display = 'flex';
-        if (chatScreen) chatScreen.style.display = 'none';
+        document.getElementById('auth-screen').style.display = 'flex';
     }
 
-    document.getElementById('msgInput')?.addEventListener('keypress', (e) => { 
-        if (e.key === 'Enter') sendMessage(); 
-    });
+    document.getElementById('msgInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+    document.getElementById('send-btn')?.addEventListener('click', sendMessage);
+    document.querySelector('.logout-btn')?.addEventListener('click', () => { localStorage.removeItem('barzoUser'); location.reload(); });
 });

@@ -2,12 +2,14 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// 1. SERVICE WORKER KAYDI (Üstten bildirim için)
+// 1. SERVICE WORKER KAYDI (Bildirimler için şart)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('Bildirim servisi aktif ✅'))
-            .catch(err => console.log('Servis hatası:', err));
+            .then(reg => {
+                console.log('Bildirim servisi (SW) aktif ✅');
+            })
+            .catch(err => console.log('SW Kayıt Hatası:', err));
     });
 }
 
@@ -28,28 +30,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // BİLDİRİM İZNİ İSTE
-    if ("Notification" in window && Notification.permission !== "granted") {
-        Notification.requestPermission();
-    }
+    // BİLDİRİM İZNİNİ ZORLA (Özellikle uygulama modu için)
+    requestNotificationPermission();
 });
 
-// ÜSTTEN BİLDİRİM GÖSTERME (Sessiz Kayan Bildirim)
-// ÜSTTEN BİLDİRİM GÖSTERME (Klasik Mesaj İkonlu)
+// BİLDİRİM İZNİ İSTEME FONKSİYONU
+function requestNotificationPermission() {
+    if ("Notification" in window) {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    console.log("Bildirim izni verildi!");
+                }
+            });
+        }
+    }
+}
+
+// ÜSTTEN BİLDİRİM GÖSTERME (Klasik İkonlu & Sessiz)
 function showTopNotification(data) {
     if ("Notification" in window && Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
-            const classicIcon = 'https://cdn-icons-png.flaticon.com/512/589/589708.png?v=1';
+            const classicIcon = 'https://cdn-icons-png.flaticon.com/512/589/589708.png';
             
             registration.showNotification(data.user, {
                 body: data.text,
-                icon: classicIcon,   // Büyük ikon (Mesaj balonu)
-                badge: classicIcon,  // Bildirim çubuğundaki küçük ikon
-                image: classicIcon,  // Bazı cihazlarda bildirimi genişletince çıkan büyük resim
+                icon: classicIcon,
+                badge: classicIcon,
                 vibrate: [200, 100, 200],
                 tag: 'chat-msg',
                 renotify: true,
-                data: { url: window.location.origin } // Tıklayınca siteye gitmesi için
+                data: { url: window.location.origin }
             });
         });
     }
@@ -61,7 +72,7 @@ function hideEmojiPicker() { document.getElementById('custom-emoji-picker').clas
 function addEmoji(emoji) { const input = document.getElementById('msgInput'); if(input) { input.value += emoji; input.focus(); } }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// MESAJI EKRANA YAZDIRMA
+// MESAJI EKRANA YAZDIRMA (Saat ve ✓✓)
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
@@ -84,7 +95,7 @@ function renderMessage(data) {
     }
 }
 
-// PUSHER VE ÇEVRİMİÇİ LİSTESİ
+// PUSHER VE ÇEVRİMİÇİ LİSTESİ (Yeşil Nokta Dahil)
 function initPusher() {
     if (!loggedInUser) return;
     
@@ -103,7 +114,7 @@ function initPusher() {
             renderMessage(data);
         }
 
-        // SADECE BİLDİRİM (Ses Yok)
+        // ÜSTTEN BİLDİRİM (Başkasından geldiyse)
         if (data.user !== loggedInUser) {
             showTopNotification(data);
         }
@@ -187,5 +198,3 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
-
-

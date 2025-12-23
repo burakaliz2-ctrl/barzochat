@@ -1,21 +1,42 @@
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
+let deferredPrompt; // Yükleme istemini saklamak için
 
 // 1. SERVICE WORKER KAYDI VE GÜNCELLEME
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=2').then(reg => {
+        navigator.serviceWorker.register('/sw.js?v=3').then(reg => {
             reg.update();
             console.log('Bildirim servisi (SW) hazır ✅');
         }).catch(err => console.log('SW Kayıt Hatası:', err));
     });
 }
 
-// 2. BİLDİRİM İZNİ KONTROLÜ (Uygulama Modu İçin)
+// 2. OTOMATİK UYGULAMA YÜKLEME TETİKLEYİCİSİ
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Tarayıcının varsayılan istemini durdur
+    e.preventDefault();
+    // İstemi sakla
+    deferredPrompt = e;
+
+    // Kullanıcı sayfaya girdikten 2 saniye sonra yükleme penceresini aç
+    setTimeout(() => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('Kullanıcı uygulamayı yüklemeyi kabul etti');
+                }
+                deferredPrompt = null;
+            });
+        }
+    }, 2000);
+});
+
+// 3. BİLDİRİM İZNİ KONTROLÜ
 function checkNotificationPermission() {
     if (!("Notification" in window)) return;
-    
     if (Notification.permission === "default") {
         Notification.requestPermission().then(permission => {
             if (permission === "granted") console.log("Bildirim izni verildi.");
@@ -24,7 +45,7 @@ function checkNotificationPermission() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // EKRAN KONTROLÜ (Siyah ekranı önler)
+    // EKRAN KONTROLÜ
     const auth = document.getElementById('auth-screen');
     const chat = document.getElementById('chat-screen');
 
@@ -43,11 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // UYGULAMA AÇILDIĞINDA İZİN İSTE
+    // İZİN İSTE
     checkNotificationPermission();
 });
 
-// 3. ÜSTTEN BİLDİRİM GÖSTERME (Modern İkonlu)
+// 4. ÜSTTEN BİLDİRİM GÖSTERME (Modern İkonlu)
 function showTopNotification(data) {
     if ("Notification" in window && Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
@@ -129,7 +150,7 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ GÖNDERME VE DİĞERLERİ
+// MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input ? input.value.trim() : "";
@@ -145,6 +166,7 @@ async function sendMessage() {
     });
 }
 
+// SOHBET DEĞİŞTİRME
 async function switchChat(t) {
     activeChat = t;
     const title = document.getElementById('active-chat-title');

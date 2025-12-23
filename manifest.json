@@ -1,15 +1,17 @@
 {
   "name": "Barzo Chat",
   "short_name": "Barzo",
+  "description": "Barzo Özel Sohbet Uygulaması",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
-"icons": [
-  {
-    "src": "https://cdn-icons-png.flaticon.com/512/3601/3601571.png",
-    "sizes": "512x512",
-    "type": "image/png"
-  }
-]
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3601/3601571.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
 }

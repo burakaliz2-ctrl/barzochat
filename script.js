@@ -5,12 +5,12 @@ let presenceChannel = null;
 // SES BİLDİRİMİ
 const notifySound = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3');
 
-// 1. SERVICE WORKER KAYDI (Siyah ekranı önlemek için try-catch içinde)
+// 1. SERVICE WORKER KAYDI
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('Bildirim servisi aktif ✅'))
-            .catch(err => console.log('Bildirim servisi başlatılamadı (HTTPS eksik olabilir):', err));
+            .catch(err => console.log('Bildirim servisi başlatılamadı:', err));
     });
 }
 
@@ -31,11 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // SES KİLİDİNİ AÇMA (İlk tıklamada)
+    // SES KİLİDİNİ AÇMA & MEDYA PANELİNİ SIFIRLAMA
     const unlock = () => { 
         notifySound.play().then(() => { 
             notifySound.pause(); 
             notifySound.currentTime = 0; 
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'none';
+            }
         }).catch(() => {}); 
         document.removeEventListener('click', unlock);
         document.removeEventListener('touchstart', unlock);
@@ -48,6 +51,27 @@ document.addEventListener('DOMContentLoaded', () => {
         Notification.requestPermission();
     }
 });
+
+// GELİŞTİRİLMİŞ SES ÇALMA (Medya Panelini Gizler)
+function playNotificationSound() {
+    if ('mediaSession' in navigator) {
+        // Paneli boş bilgilerle sıfırla
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: '', artist: '', album: '', artwork: []
+        });
+        navigator.mediaSession.playbackState = 'none';
+    }
+
+    notifySound.currentTime = 0;
+    notifySound.play().then(() => {
+        // Çalmaya başladıktan hemen sonra paneli tekrar kapat
+        setTimeout(() => {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'none';
+            }
+        }, 100);
+    }).catch(err => console.log("Ses çalma hatası:", err));
+}
 
 // BİLDİRİM GÖSTERME (Kayan Bildirim)
 function showTopNotification(data) {
@@ -67,10 +91,10 @@ function showTopNotification(data) {
 // EMOJI & SIDEBAR FONKSİYONLARI
 function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
 function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
-function addEmoji(emoji) { const input = document.getElementById('msgInput'); input.value += emoji; input.focus(); }
+function addEmoji(emoji) { const input = document.getElementById('msgInput'); if(input) { input.value += emoji; input.focus(); } }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// MESAJI EKRANA YAZDIRMA (Saat ve ✓✓ Dahil)
+// MESAJI EKRANA YAZDIRMA
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
@@ -93,7 +117,7 @@ function renderMessage(data) {
     }
 }
 
-// PUSHER VE ÇEVRİMİÇİ LİSTESİ (Yeşil Nokta Dahil)
+// PUSHER VE ÇEVRİMİÇİ LİSTESİ
 function initPusher() {
     if (!loggedInUser) return;
     
@@ -114,8 +138,7 @@ function initPusher() {
 
         // SES VE BİLDİRİM (Başkasından geldiyse)
         if (data.user !== loggedInUser) {
-            notifySound.currentTime = 0;
-            notifySound.play().catch(() => {});
+            playNotificationSound();
             showTopNotification(data);
         }
     });
@@ -182,20 +205,13 @@ async function switchChat(t) {
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
 }
 
-// LOGIN & LOGOUT
 function login() { 
     const uInput = document.getElementById('username');
     const u = uInput ? uInput.value.trim() : ""; 
-    if(u) { 
-        localStorage.setItem('barzoUser', u); 
-        location.reload(); 
-    } 
+    if(u) { localStorage.setItem('barzoUser', u); location.reload(); } 
 }
 
-function logout() { 
-    localStorage.removeItem('barzoUser'); 
-    location.reload(); 
-}
+function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
 
 function showChat() { 
     const auth = document.getElementById('auth-screen');
@@ -205,16 +221,3 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
-
-function playNotification() {
-    notifySound.currentTime = 0;
-    notifySound.play().then(() => {
-        // Medya kontrol panelinde görünmesini engellemek için session'ı hemen durduruyoruz
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.playbackState = 'none';
-            // Paneldeki bilgileri temizle
-            navigator.mediaSession.metadata = null;
-        }
-    }).catch(err => console.log("Ses çalma hatası:", err));
-}
-

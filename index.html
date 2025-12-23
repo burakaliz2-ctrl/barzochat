@@ -2,14 +2,14 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Barzo Chat</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 </head>
 <body>
 
-    <div id="auth-screen" class="screen">
+    <div id="auth-screen" style="display:none;" class="screen">
         <div class="auth-box">
             <h2>Hoşgeldin Barzo</h2>
             <input type="text" id="username" placeholder="Rumuzun nedir?">
@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <div id="chat-screen">
+    <div id="chat-screen" style="display:none;">
         <div id="sidebar">
             <div class="sidebar-header">
                 <h3>Kişiler (<span id="online-counter">0</span>)</h3>
@@ -46,8 +46,6 @@
                     <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🤡')">🤡</span>
                     <span onclick="addEmoji('✅')">✅</span><span onclick="addEmoji('🌟')">🌟</span>
                     <span onclick="addEmoji('🤔')">🤔</span><span onclick="addEmoji('💨')">💨</span>
-                    <span onclick="addEmoji('💯')">💯</span><span onclick="addEmoji('✨')">✨</span>
-                    <span onclick="addEmoji('👋')">👋</span><span onclick="addEmoji('🎉')">🎉</span>
                 </div>
 
                 <div class="input-container">

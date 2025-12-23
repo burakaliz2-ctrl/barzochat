@@ -1,56 +1,25 @@
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
-let soundEnabled = true;
-const notifySound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
+let pressTimer;
 
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") showChat();
     else document.getElementById('auth-screen').style.display = 'flex';
 });
 
-// SES KONTROLÜ
-function toggleSound(status) {
-    soundEnabled = status;
-    document.getElementById('sound-on').style.opacity = status ? "1" : "0.3";
-    document.getElementById('sound-off').style.opacity = status ? "0.3" : "1";
-};
-
-// EMOJİ EKLEME
-function addEmoji(emoji) {
+// Emoji Butonuna Basınca Klavyeyi Aç
+function openSystemEmojis() {
     const input = document.getElementById('msgInput');
-    input.value += emoji;
-    input.focus();
-};
-
-async function auth(action) {
-    const u = document.getElementById('auth-user').value.trim();
-    const p = document.getElementById('auth-pass').value.trim();
-    if(!u || !p) return alert("Eksik bilgi!");
-
-    const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action, username: u, password: p })
-    });
-    
-    if (res.ok) {
-        if(action === 'login') {
-            localStorage.setItem('barzoUser', u);
-            location.reload();
-        } else alert("Kayıt başarılı! Giriş yap.");
-    } else {
-        const data = await res.json();
-        alert(data.error || "Hata!");
-    }
-};
+    input.focus(); // Klavyeyi tetikler, kullanıcı klavyeden emoji seçer
+}
 
 function showChat() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('chat-screen').style.display = 'flex';
     initPusher();
     switchChat('general');
-};
+}
 
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
@@ -61,19 +30,21 @@ function initPusher() {
     presenceChannel = pusher.subscribe('presence-chat');
 
     presenceChannel.bind('new-message', data => {
-        const isGeneral = (data.target === 'general' && activeChat === 'general');
-        const isDM = (data.user === activeChat && data.target === loggedInUser) || 
-                     (data.user === loggedInUser && data.target === activeChat);
-
-        if (isGeneral || isDM) {
+        if ((data.target === 'general' && activeChat === 'general') || 
+            (data.user === activeChat && data.target === loggedInUser) || 
+            (data.user === loggedInUser && data.target === activeChat)) {
             renderMessage(data);
-            if (data.user !== loggedInUser && soundEnabled) notifySound.play().catch(() => {});
-            
             if (data.user === loggedInUser) {
                 const tick = document.querySelector(`#${data.id} .tick`);
                 if (tick) { tick.innerText = ' ✓✓'; tick.style.color = '#4fc3f7'; }
             }
         }
+    });
+
+    // Mesaj silme olayını dinle
+    presenceChannel.bind('delete-message', data => {
+        const el = document.getElementById(data.id);
+        if (el) el.remove();
     });
 
     const updateUI = () => {
@@ -90,18 +61,52 @@ function initPusher() {
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
     presenceChannel.bind('pusher:member_added', updateUI);
     presenceChannel.bind('pusher:member_removed', updateUI);
-};
+}
 
-async function switchChat(t) {
-    activeChat = t;
-    document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
-    document.getElementById('chat').innerHTML = '';
-    if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
+// MESAJ SİLME (Basılı Tutma Mantığı)
+function startPress(id) {
+    pressTimer = window.setTimeout(() => {
+        if (confirm("Bu mesajı silmek istiyor musun?")) {
+            deleteMessage(id);
+        }
+    }, 800); // 800ms basılı tutunca tetiklenir
+}
 
-    const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
-    const msgs = await res.json();
-    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id, isHistory: true }));
-};
+function endPress() {
+    clearTimeout(pressTimer);
+}
+
+async function deleteMessage(id) {
+    const cleanId = id.replace('msg-', '');
+    await fetch('/api/send-message', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'delete', id: cleanId })
+    });
+}
+
+function renderMessage(data) {
+    if (!data.id || !data.text || document.getElementById(data.id)) return;
+    const isOwn = data.user === loggedInUser;
+    
+    // Mesaj ID'sini 'msg-' formatında ayarla
+    const msgId = data.id.startsWith('msg-') ? data.id : 'msg-' + data.id;
+
+    const html = `
+        <div id="${msgId}" class="msg ${isOwn ? 'own' : 'other'}" 
+             onmousedown="startPress('${msgId}')" onmouseup="endPress()"
+             ontouchstart="startPress('${msgId}')" ontouchend="endPress()">
+            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7;">${data.user}</small>` : ''}
+            <div style="display:flex; align-items:flex-end; gap:5px;">
+                <span>${data.text}</span>
+                ${isOwn ? `<span class="tick" style="font-size:9px; opacity:0.6;">${data.isHistory ? ' ✓✓' : ' ✓'}</span>` : ''}
+            </div>
+        </div>`;
+
+    const c = document.getElementById('chat');
+    c.insertAdjacentHTML('beforeend', html);
+    c.scrollTop = c.scrollHeight;
+}
 
 async function sendMessage() {
     const input = document.getElementById('msgInput');
@@ -113,31 +118,23 @@ async function sendMessage() {
 
     renderMessage(messageData);
     input.value = '';
+    input.focus();
 
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(messageData)
     });
-};
+}
 
-function renderMessage(data) {
-    if (!data.id || !data.text || document.getElementById(data.id)) return;
-
-    const isOwn = data.user === loggedInUser;
-    const html = `
-        <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
-            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7;">${data.user}</small>` : ''}
-            <div style="display:flex; align-items:flex-end; gap:5px;">
-                <span>${data.text}</span>
-                ${isOwn ? `<span class="tick" style="font-size:9px; opacity:0.6;">${data.isHistory ? ' ✓✓' : ' ✓'}</span>` : ''}
-            </div>
-        </div>`;
-
-    const c = document.getElementById('chat');
-    c.insertAdjacentHTML('beforeend', html);
-    c.scrollTop = c.scrollHeight;
-};
+async function switchChat(t) {
+    activeChat = t;
+    document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
+    document.getElementById('chat').innerHTML = '';
+    const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
+    const msgs = await res.json();
+    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id, isHistory: true }));
+}
 
 function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }

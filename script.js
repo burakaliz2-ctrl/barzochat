@@ -3,23 +3,29 @@ let activeChat = 'general';
 let presenceChannel = null;
 let pressTimer;
 
+// Bildirim Sesi
+const notifySound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
+
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") showChat();
     else document.getElementById('auth-screen').style.display = 'flex';
+    
+    // Tarayıcıların ses kısıtlamasını aşmak için ilk tıkta sesi aktif et
+    document.addEventListener('click', () => { notifySound.load(); }, { once: true });
 });
 
-// MENÜ AÇMA (3 ÇİZGİ)
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (sidebar) sidebar.classList.toggle('open');
 }
 
-// EMOJİ BUTONU (KLAVYEYİ AÇAR)
+// Emoji Butonu Düzeltmesi
 function openSystemEmojis() {
     const input = document.getElementById('msgInput');
     if (input) {
         input.focus();
-        input.click(); // Bazı mobillerde klavyeyi zorlar
+        // Bazı mobil tarayıcılar için sanal bir tıklama simülasyonu
+        setTimeout(() => { input.click(); }, 50);
     }
 }
 
@@ -42,11 +48,23 @@ function initPusher() {
         const canRender = (data.target === 'general' && activeChat === 'general') || 
                           (data.user === activeChat && data.target === loggedInUser) || 
                           (data.user === loggedInUser && data.target === activeChat);
+        
         if (canRender) {
             renderMessage(data);
+            
+            // Bildirim Sesi: Mesaj başkasından geldiyse çal
+            if (data.user !== loggedInUser) {
+                notifySound.play().catch(e => console.log("Ses çalma izni bekleniyor..."));
+            }
+
             if (data.user === loggedInUser) {
                 const tick = document.querySelector(`#${data.id} .tick`);
                 if (tick) { tick.innerText = ' ✓✓'; tick.style.color = '#4fc3f7'; }
+            }
+        } else {
+            // Aktif olmayan bir sohbetten mesaj gelirse ses çal (Bildirim)
+            if (data.user !== loggedInUser) {
+                notifySound.play().catch(() => {});
             }
         }
     });
@@ -76,7 +94,7 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ SİLME (BASILI TUTMA)
+// MESAJ SİLME
 function startPress(id) { pressTimer = setTimeout(() => { if (confirm("Mesajı silmek istiyor musun?")) deleteMessage(id); }, 800); }
 function endPress() { clearTimeout(pressTimer); }
 async function deleteMessage(id) {
@@ -116,6 +134,7 @@ async function sendMessage() {
     const messageId = "msg-" + Date.now();
     renderMessage({ user: loggedInUser, text: val, target: activeChat, id: messageId });
     input.value = '';
+    input.focus();
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

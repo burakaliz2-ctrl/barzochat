@@ -51,12 +51,13 @@ function requestNotificationPermission() {
 function showTopNotification(data) {
     if ("Notification" in window && Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
-            const classicIcon = 'https://cdn-icons-png.flaticon.com/512/589/589708.png';
+            // Modern, minimalist koyu mavi sohbet ikonu
+            const modernIcon = 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png';
             
             registration.showNotification(data.user, {
                 body: data.text,
-                icon: classicIcon,
-                badge: classicIcon,
+                icon: modernIcon,
+                badge: modernIcon,
                 vibrate: [200, 100, 200],
                 tag: 'chat-msg',
                 renotify: true,
@@ -198,3 +199,4 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
+

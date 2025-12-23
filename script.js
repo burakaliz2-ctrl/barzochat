@@ -8,11 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else document.getElementById('auth-screen').style.display = 'flex';
 });
 
-// WhatsApp Tarzı: Klavye Odaklama
-function openSystemEmojis() {
-    const input = document.getElementById('msgInput');
-    input.focus();
-}
+function openSystemEmojis() { document.getElementById('msgInput').focus(); }
 
 function showChat() {
     document.getElementById('auth-screen').style.display = 'none';
@@ -30,9 +26,10 @@ function initPusher() {
     presenceChannel = pusher.subscribe('presence-chat');
 
     presenceChannel.bind('new-message', data => {
-        if ((data.target === 'general' && activeChat === 'general') || 
-            (data.user === activeChat && data.target === loggedInUser) || 
-            (data.user === loggedInUser && data.target === activeChat)) {
+        const canRender = (data.target === 'general' && activeChat === 'general') || 
+                          (data.user === activeChat && data.target === loggedInUser) || 
+                          (data.user === loggedInUser && data.target === activeChat);
+        if (canRender) {
             renderMessage(data);
             if (data.user === loggedInUser) {
                 const tick = document.querySelector(`#${data.id} .tick`);
@@ -46,7 +43,6 @@ function initPusher() {
         if (el) el.remove();
     });
 
-    // Sidebar'daki Kişi Listesini Güncelle
     const updateUI = () => {
         const list = document.getElementById('user-list');
         list.innerHTML = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Mevzu</div>`;
@@ -58,8 +54,7 @@ function initPusher() {
                     </div>`);
             }
         });
-        const counter = document.getElementById('online-counter');
-        if(counter) counter.innerText = presenceChannel.members.count;
+        document.getElementById('online-counter').innerText = presenceChannel.members.count;
     };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
@@ -67,14 +62,9 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// Mesaj Silme (Basılı Tutma)
-function startPress(id) {
-    pressTimer = window.setTimeout(() => {
-        if (confirm("Bu mesajı silmek istiyor musun?")) deleteMessage(id);
-    }, 800);
-}
+// MESAJ SİLME
+function startPress(id) { pressTimer = setTimeout(() => { if (confirm("Silinsin mi?")) deleteMessage(id); }, 800); }
 function endPress() { clearTimeout(pressTimer); }
-
 async function deleteMessage(id) {
     const cleanId = id.replace('msg-', '');
     await fetch('/api/send-message', {
@@ -93,7 +83,7 @@ function renderMessage(data) {
         <div id="${msgId}" class="msg ${isOwn ? 'own' : 'other'}" 
              onmousedown="startPress('${msgId}')" onmouseup="endPress()"
              ontouchstart="startPress('${msgId}')" ontouchend="endPress()">
-            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7; font-weight:bold; margin-bottom:2px;">${data.user}</small>` : ''}
+            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7; font-weight:bold;">${data.user}</small>` : ''}
             <div style="display:flex; align-items:flex-end; gap:5px;">
                 <span>${data.text}</span>
                 ${isOwn ? `<span class="tick" style="font-size:9px; opacity:0.6;">${data.isHistory ? ' ✓✓' : ' ✓'}</span>` : ''}
@@ -109,26 +99,21 @@ async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
     if (!val) return;
-    
     const messageId = "msg-" + Date.now();
-    const messageData = { action: 'new', user: loggedInUser, text: val, target: activeChat, id: messageId };
-
-    renderMessage(messageData);
+    renderMessage({ action: 'new', user: loggedInUser, text: val, target: activeChat, id: messageId });
     input.value = '';
-    input.focus();
-
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(messageData)
+        body: JSON.stringify({ action: 'new', user: loggedInUser, text: val, target: activeChat, id: messageId })
     });
 }
 
 async function switchChat(t) {
     activeChat = t;
-    const title = document.getElementById('active-chat-title');
-    if(title) title.innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
+    document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
     document.getElementById('chat').innerHTML = '';
+    if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
     const msgs = await res.json();
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id, isHistory: true }));

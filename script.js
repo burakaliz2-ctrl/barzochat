@@ -1,24 +1,42 @@
-// SERVICE WORKER KAYDI (Üstten bildirim için şart)
+// 1. Service Worker Kaydı (Hata ayıklama mesajları eklendi)
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
-    .then(reg => console.log('Bildirim servisi hazır.', reg))
-    .catch(err => console.log('Servis hatası:', err));
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+        console.log('Service Worker Kayıtlı ✅');
+    }).catch(err => {
+        console.error('Service Worker Kayıt Hatası (HTTPS mi?):', err);
+    });
 }
 
-// BİLDİRİM GÖSTERME FONKSİYONUNU GÜNCELLE
+// 2. Bildirim Gönderme (Tarayıcıyı zorlayan yöntem)
 function showTopNotification(data) {
+    if (!("Notification" in window)) return;
+
     if (Notification.permission === "granted") {
-        // Service Worker üzerinden bildirimi fırlat (Kayan bildirim budur)
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification(data.user, {
                 body: data.text,
                 icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
                 vibrate: [200, 100, 200],
                 badge: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
-                tag: 'chat-msg'
+                tag: 'chat-notification',
+                renotify: true // Her yeni mesajda tekrar titret/göster
             });
         });
+    } else if (Notification.permission !== "denied") {
+        // İzin verilmemişse tekrar iste
+        Notification.requestPermission();
     }
+}
+
+// 3. Mesaj Geldiğinde Tetikleme
+// initPusher içindeki bind('new-message') kısmına şunu ekle:
+if (data.user !== loggedInUser) {
+    // Uygulama o an açık ve görünür olsa bile bildirimi fırlat (Test için)
+    showTopNotification(data);
+    
+    // Ses çalma (Önceki kodlarınla aynı)
+    notifySound.currentTime = 0;
+    notifySound.play().catch(() => {});
 }
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
@@ -188,4 +206,5 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
+
 

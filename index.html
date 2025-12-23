@@ -9,20 +9,15 @@
     <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 </head>
 <body>
-
-    <div id="auth-screen">
-        <div class="auth-box">
-            <h2>Barzo Chat</h2>
-            <div class="input-group">
-                <input type="text" id="username" placeholder="Kullanıcı Adı" autocomplete="off">
-            </div>
-            <div class="input-group">
-                <input type="password" id="password" placeholder="Şifre" autocomplete="off">
-            </div>
-            <button class="login-btn" onclick="login()">Giriş Yap</button>
-            <button class="register-btn" onclick="register()">Kayıt Ol</button>
-        </div>
+<div id="auth-screen">
+    <div class="auth-box">
+        <h2>Barzo Chat</h2>
+        <input type="text" id="username" placeholder="Kullanıcı Adı">
+        <input type="password" id="password" placeholder="Şifre">
+        <button class="login-btn" onclick="login()">Giriş Yap</button>
+        <button class="register-btn" onclick="register()">Kayıt Ol</button>
     </div>
+</div>
 
     <div id="chat-screen" style="display:none;">
         <div id="sidebar">
@@ -57,3 +52,4 @@
     <script src="script.js"></script>
 </body>
 </html>
+

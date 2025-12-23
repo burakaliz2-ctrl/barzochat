@@ -1,40 +1,58 @@
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+/* Genel Ayarlar */
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
 body { background: #0a0a0c; color: white; height: 100vh; overflow: hidden; }
 
-.screen { width: 100%; height: 100vh; position: fixed; top: 0; left: 0; }
-
-/* Giriş Ekranı */
+/* EKRAN YÖNETİMİ */
+.screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: none; }
 #auth-screen { display: flex; align-items: center; justify-content: center; z-index: 1000; background: #0a0a0c; }
-.auth-box { background: #141418; padding: 30px; border-radius: 20px; border: 1px solid #27272a; width: 320px; text-align: center; }
-.auth-box input { width: 100%; padding: 12px; margin-bottom: 10px; background: #1f1f23; border: 1px solid #27272a; color: white; border-radius: 10px; }
-.auth-box button { width: 100%; padding: 12px; background: #7226fa; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
-.auth-box button.secondary { background: #27272a; margin-top: 8px; }
 
-/* Chat Ekranı */
-#chat-screen { display: none; flex-direction: row; }
-#sidebar { width: 280px; background: #141418; border-right: 1px solid #27272a; display: flex; flex-direction: column; }
-#user-list { flex: 1; overflow-y: auto; padding: 10px; }
-.user-item { padding: 12px; margin-bottom: 5px; border-radius: 8px; cursor: pointer; background: #1f1f23; }
-.user-item.active { border-left: 4px solid #7226fa; background: #27272a; }
+/* CHAT ANA YAPI (Mobil Klavye Fix) */
+#chat-screen { 
+    display: none; 
+    height: 100dvh; /* Dinamik yükseklik: Klavyeye göre daralır */
+    width: 100vw; 
+    flex-direction: row;
+}
 
-#main-chat { flex: 1; display: flex; flex-direction: column; }
-header { padding: 15px; background: #141418; border-bottom: 1px solid #27272a; display: flex; align-items: center; }
-#chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+#sidebar { 
+    width: 280px; background: #141418; border-right: 1px solid #27272a; 
+    display: flex; flex-direction: column; z-index: 2000;
+}
 
-.msg { max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 14px; line-height: 1.4; }
-.msg.own { align-self: flex-end; background: #7226fa; }
-.msg.other { align-self: flex-start; background: #27272a; }
+#main-chat { flex: 1; display: flex; flex-direction: column; background: #0a0a0c; height: 100%; position: relative; }
 
-.bottom-area { padding: 15px; background: #0a0a0c; }
-.input-container { display: flex; gap: 10px; background: #1f1f23; padding: 5px; border-radius: 12px; }
-#msgInput { flex: 1; background: none; border: none; color: white; padding: 10px; outline: none; }
-#send-btn { background: #7226fa; border: none; color: white; padding: 10px 20px; border-radius: 10px; cursor: pointer; }
+/* MESAJ ALANI */
+#chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 80%; padding: 10px 15px; border-radius: 15px; font-size: 14px; position: relative; }
+.msg.own { align-self: flex-end; background: #7226fa; color: white; border-bottom-right-radius: 2px; }
+.msg.other { align-self: flex-start; background: #27272a; color: white; border-bottom-left-radius: 2px; }
 
-.logout-btn { width: 90%; margin: 10px auto; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; }
+/* ALT KISIM (Emoji ve Input) */
+.bottom-area { 
+    background: #141418; 
+    padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom)); /* Mobil alt barlar için boşluk */
+    border-top: 1px solid #27272a;
+}
 
+.emoji-bar { display: flex; gap: 12px; padding: 5px 5px 10px; overflow-x: auto; font-size: 20px; }
+.emoji-bar span { cursor: pointer; }
+
+.input-container { display: flex; gap: 10px; background: #1f1f23; border-radius: 12px; padding: 5px; }
+#msgInput { flex: 1; background: none; border: none; color: white; padding: 10px; outline: none; font-size: 16px; }
+#send-btn { background: #7226fa; border: none; color: white; padding: 0 20px; border-radius: 10px; cursor: pointer; }
+
+/* SES VE ÇIKIŞ BUTONLARI */
+.sidebar-footer { padding: 15px; border-top: 1px solid #27272a; }
+.sound-controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+.sound-btn { background: #1f1f23; border: 1px solid #27272a; color: white; padding: 8px; border-radius: 8px; cursor: pointer; }
+.logout-btn { width: 100%; padding: 10px; background: #ef4444; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+
+/* MOBİL TASARIM */
 @media (max-width: 768px) {
-    #sidebar { position: absolute; left: -100%; z-index: 2000; height: 100%; width: 80%; transition: 0.3s; }
+    #sidebar { position: absolute; left: -100%; width: 80%; height: 100%; transition: 0.3s; }
     #sidebar.open { left: 0; }
-    #menu-toggle { display: block !important; background: none; border: none; color: white; font-size: 24px; margin-right: 15px; }
+    #menu-toggle { display: block !important; background: none; border: none; color: #7226fa; font-size: 24px; margin-right: 15px; }
 }
 #menu-toggle { display: none; }
+header { padding: 15px; background: #141418; border-bottom: 1px solid #27272a; display: flex; align-items: center; }

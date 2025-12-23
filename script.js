@@ -2,18 +2,17 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// 1. SERVICE WORKER KAYDI VE GÜNCELLEME (Bildirimlerin Merkezi)
+// 1. SERVICE WORKER KAYDI VE GÜNCELLEME
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        // Versiyon ekleyerek tarayıcıyı dosyayı yenilemeye zorluyoruz
         navigator.serviceWorker.register('/sw.js?v=2').then(reg => {
-            reg.update(); // Yeni bir sürüm varsa hemen güncelle
+            reg.update();
             console.log('Bildirim servisi (SW) hazır ✅');
         }).catch(err => console.log('SW Kayıt Hatası:', err));
     });
 }
 
-// 2. BİLDİRİM İZNİ KONTROLÜ
+// 2. BİLDİRİM İZNİ KONTROLÜ (Uygulama Modu İçin)
 function checkNotificationPermission() {
     if (!("Notification" in window)) return;
     
@@ -25,12 +24,15 @@ function checkNotificationPermission() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // EKRAN KONTROLÜ
+    // EKRAN KONTROLÜ (Siyah ekranı önler)
+    const auth = document.getElementById('auth-screen');
+    const chat = document.getElementById('chat-screen');
+
     if (loggedInUser && loggedInUser !== "undefined") {
         showChat();
     } else {
-        const auth = document.getElementById('auth-screen');
         if (auth) auth.style.display = 'flex';
+        if (chat) chat.style.display = 'none';
     }
 
     // ENTER TUŞU DİNLEYİCİ
@@ -63,12 +65,6 @@ function showTopNotification(data) {
         });
     }
 }
-
-// EMOJI & SIDEBAR FONKSİYONLARI
-function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
-function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
-function addEmoji(emoji) { const input = document.getElementById('msgInput'); if(input) { input.value += emoji; input.focus(); } }
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
 // MESAJI EKRANA YAZDIRMA
 function renderMessage(data) {
@@ -112,7 +108,6 @@ function initPusher() {
             renderMessage(data);
         }
 
-        // ÜSTTEN BİLDİRİM (Başkasından geldiyse)
         if (data.user !== loggedInUser) {
             showTopNotification(data);
         }
@@ -121,21 +116,12 @@ function initPusher() {
     const updateUI = () => {
         const list = document.getElementById('user-list');
         if (!list) return;
-        list.innerHTML = `
-            <div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">
-                <span class="online-dot"></span> 🌍 Genel Mevzu
-            </div>`;
-        
+        list.innerHTML = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')"><span class="online-dot"></span> 🌍 Genel Mevzu</div>`;
         presenceChannel.members.each(m => {
             if (m.id && m.id !== loggedInUser) {
-                list.insertAdjacentHTML('beforeend', `
-                    <div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')">
-                        <span class="online-dot"></span> ${m.id}
-                    </div>`);
+                list.insertAdjacentHTML('beforeend', `<div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')"><span class="online-dot"></span> ${m.id}</div>`);
             }
         });
-        const counter = document.getElementById('online-counter');
-        if (counter) counter.innerText = presenceChannel.members.count;
     };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
@@ -143,17 +129,15 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ GÖNDERME
+// MESAJ GÖNDERME VE DİĞERLERİ
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input ? input.value.trim() : "";
     if (!val) return;
-    
     hideEmojiPicker();
     const messageId = "msg-" + Date.now();
     renderMessage({ user: loggedInUser, text: val, id: messageId });
     input.value = '';
-    
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -161,33 +145,19 @@ async function sendMessage() {
     });
 }
 
-// SOHBET DEĞİŞTİRME
 async function switchChat(t) {
     activeChat = t;
     const title = document.getElementById('active-chat-title');
     if (title) title.innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
-    
     const chatBox = document.getElementById('chat');
     if (chatBox) chatBox.innerHTML = '';
-    
-    if(window.innerWidth <= 768) {
-        const side = document.getElementById('sidebar');
-        if (side) side.classList.remove('open');
-    }
-    
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
     const msgs = await res.json();
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
 }
 
-function login() { 
-    const uInput = document.getElementById('username');
-    const u = uInput ? uInput.value.trim() : ""; 
-    if(u) { localStorage.setItem('barzoUser', u); location.reload(); } 
-}
-
+function login() { const u = document.getElementById('username').value.trim(); if(u) { localStorage.setItem('barzoUser', u); location.reload(); } }
 function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
-
 function showChat() { 
     const auth = document.getElementById('auth-screen');
     const chat = document.getElementById('chat-screen');
@@ -196,3 +166,7 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
+function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
+function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
+function addEmoji(emoji) { const input = document.getElementById('msgInput'); if(input) { input.value += emoji; input.focus(); } }
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }

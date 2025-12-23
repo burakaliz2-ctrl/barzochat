@@ -153,3 +153,53 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fileInput')?.addEventListener('change', handleFileUpload);
     document.querySelector('.logout-btn')?.addEventListener('click', () => { localStorage.removeItem('barzoUser'); location.reload(); });
 });
+// RESİM SIKIŞTIRMA VE GÖNDERME FONKSİYONU
+async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+        const img = new Image();
+        img.src = ev.target.result;
+        img.onload = async () => {
+            // 1. Resmi tuval (canvas) üzerinde küçült
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 800; // Bilgisayarda net görünür, veri boyutu düşer
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // 2. Kaliteyi %70'e düşürerek Base64'e çevir
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            
+            const id = "msg-" + Date.now();
+            
+            // Ekranda göster
+            renderMessage({ user: loggedInUser, image: compressedBase64, id: id });
+
+            // Sunucuya gönder (Artık paket boyutu küçük olduğu için bilgisayara ulaşacak)
+            await fetch('/api/send-message', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    action: 'new', 
+                    user: loggedInUser, 
+                    image: compressedBase64, 
+                    target: activeChat, 
+                    id: id 
+                })
+            });
+        };
+    };
+    reader.readAsDataURL(file);
+};

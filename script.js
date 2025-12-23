@@ -2,15 +2,26 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// 1. SERVICE WORKER KAYDI (Bildirimler için şart)
+// 1. SERVICE WORKER KAYDI VE GÜNCELLEME (Bildirimlerin Merkezi)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => {
-                console.log('Bildirim servisi (SW) aktif ✅');
-            })
-            .catch(err => console.log('SW Kayıt Hatası:', err));
+        // Versiyon ekleyerek tarayıcıyı dosyayı yenilemeye zorluyoruz
+        navigator.serviceWorker.register('/sw.js?v=2').then(reg => {
+            reg.update(); // Yeni bir sürüm varsa hemen güncelle
+            console.log('Bildirim servisi (SW) hazır ✅');
+        }).catch(err => console.log('SW Kayıt Hatası:', err));
     });
+}
+
+// 2. BİLDİRİM İZNİ KONTROLÜ
+function checkNotificationPermission() {
+    if (!("Notification" in window)) return;
+    
+    if (Notification.permission === "default") {
+        Notification.requestPermission().then(permission => {
+            if (permission === "granted") console.log("Bildirim izni verildi.");
+        });
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,28 +41,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // BİLDİRİM İZNİNİ ZORLA (Özellikle uygulama modu için)
-    requestNotificationPermission();
+    // UYGULAMA AÇILDIĞINDA İZİN İSTE
+    checkNotificationPermission();
 });
 
-// BİLDİRİM İZNİ İSTEME FONKSİYONU
-function requestNotificationPermission() {
-    if ("Notification" in window) {
-        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-            Notification.requestPermission().then(permission => {
-                if (permission === "granted") {
-                    console.log("Bildirim izni verildi!");
-                }
-            });
-        }
-    }
-}
-
-// ÜSTTEN BİLDİRİM GÖSTERME (Klasik İkonlu & Sessiz)
+// 3. ÜSTTEN BİLDİRİM GÖSTERME (Modern İkonlu)
 function showTopNotification(data) {
     if ("Notification" in window && Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
-            // Modern, minimalist koyu mavi sohbet ikonu
             const modernIcon = 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png';
             
             registration.showNotification(data.user, {
@@ -73,7 +70,7 @@ function hideEmojiPicker() { document.getElementById('custom-emoji-picker').clas
 function addEmoji(emoji) { const input = document.getElementById('msgInput'); if(input) { input.value += emoji; input.focus(); } }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// MESAJI EKRANA YAZDIRMA (Saat ve ✓✓)
+// MESAJI EKRANA YAZDIRMA
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
@@ -96,7 +93,7 @@ function renderMessage(data) {
     }
 }
 
-// PUSHER VE ÇEVRİMİÇİ LİSTESİ (Yeşil Nokta Dahil)
+// PUSHER VE ÇEVRİMİÇİ LİSTESİ
 function initPusher() {
     if (!loggedInUser) return;
     
@@ -199,17 +196,3 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
-
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Tarayıcının otomatik yükle penceresini durdur
-    e.preventDefault();
-    deferredPrompt = e;
-    
-    // İstersen burada bir buton çıkarabilirsin "Uygulamayı Yükle" diye.
-    console.log("Uygulama yüklenmeye hazır! 🚀");
-    
-    // Otomatik olarak hemen sormasını istersen (bazı tarayıcılarda çalışır):
-    // deferredPrompt.prompt();
-});

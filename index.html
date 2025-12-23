@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+    <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Barzo Chat - Local</title>
+    <title>Barzo Chat</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 </head>
 <body>
 
@@ -24,7 +26,9 @@
 
     <div id="chat-screen" style="display:none;">
         <div id="sidebar">
-            <div class="sidebar-header"><h3>Kişiler</h3></div>
+            <div class="sidebar-header">
+                <h3>Kişiler</h3>
+            </div>
             <div id="user-list"></div>
             <div class="sidebar-footer">
                 <button class="logout-btn" onclick="logout()">Çıkış Yap</button>
@@ -36,10 +40,15 @@
                 <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
                 <h2 id="active-chat-title">Genel Mevzu</h2>
             </header>
+
             <div id="chat"></div>
+            <div id="typing-indicator"></div>
+
             <div class="bottom-area">
                 <div class="input-container">
-                    <input type="text" id="msgInput" placeholder="Mesajını yaz...">
+                    <button class="attach-btn" onclick="document.getElementById('fileInput').click()">📷</button>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <input type="text" id="msgInput" placeholder="Mesajını yaz..." autocomplete="off">
                     <button id="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>

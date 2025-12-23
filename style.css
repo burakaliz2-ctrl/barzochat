@@ -17,11 +17,19 @@ body { background: #0a0a0c; color: white; height: 100dvh; overflow: hidden; }
 .user-item { 
     padding: 12px; margin-bottom: 8px; border-radius: 10px; 
     cursor: pointer; display: flex; align-items: center; gap: 10px; 
-    background: transparent; transition: 0.2s; color: #a1a1aa;
+    background: transparent; transition: 0.2s; color: #e4e4e7; /* Daha beyazımsı gri */
+    font-weight: 500;
 }
-.user-item:hover { background: #1f1f23; color: white; }
+.user-item:hover { background: #1f1f23; }
 .user-item.active { background: #27272a; color: white; border-left: 4px solid #7226fa; }
-
+.online-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #22c55e; /* Tam Yeşil */
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
 .sidebar-footer { padding: 15px; border-top: 1px solid #27272a; }
 .logout-btn { 
     width: 100%; padding: 12px; background: #ef4444; color: white; 
@@ -65,3 +73,4 @@ header { height: 60px; padding: 0 20px; background: #141418; border-bottom: 1px 
     #menu-toggle { display: block !important; background: none; border: none; color: white; font-size: 24px; margin-right: 10px; }
 }
 #menu-toggle { display: none; }
+

@@ -1,3 +1,25 @@
+// SERVICE WORKER KAYDI (Üstten bildirim için şart)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+    .then(reg => console.log('Bildirim servisi hazır.', reg))
+    .catch(err => console.log('Servis hatası:', err));
+}
+
+// BİLDİRİM GÖSTERME FONKSİYONUNU GÜNCELLE
+function showTopNotification(data) {
+    if (Notification.permission === "granted") {
+        // Service Worker üzerinden bildirimi fırlat (Kayan bildirim budur)
+        navigator.serviceWorker.ready.then(registration => {
+            registration.showNotification(data.user, {
+                body: data.text,
+                icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
+                vibrate: [200, 100, 200],
+                badge: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
+                tag: 'chat-msg'
+            });
+        });
+    }
+}
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
@@ -166,3 +188,4 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
+

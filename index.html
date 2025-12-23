@@ -38,16 +38,50 @@
             <div id="chat"></div>
 
             <div class="bottom-area">
-                <div id="custom-emoji-picker">
-                    <span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('😍')">😍</span>
-                    <span onclick="addEmoji('🔥')">🔥</span><span onclick="addEmoji('👑')">👑</span>
-                    <span onclick="addEmoji('🧿')">🧿</span><span onclick="addEmoji('🤣')">🤣</span>
-                    <span onclick="addEmoji('🤫')">🤫</span><span onclick="addEmoji('💀')">💀</span>
-                    <span onclick="addEmoji('🚀')">🚀</span><span onclick="addEmoji('❤️')">❤️</span>
-                    <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🤡')">🤡</span>
-                    <span onclick="addEmoji('✅')">✅</span><span onclick="addEmoji('🌟')">🌟</span>
-                    <span onclick="addEmoji('🤔')">🤔</span><span onclick="addEmoji('💨')">💨</span>
-                </div>
+                <div id="custom-emoji-picker" class="emoji-picker">
+    <div class="emoji-list">
+        <span onclick="addEmoji('😊', event)">😊</span>
+        <span onclick="addEmoji('😂', event)">😂</span>
+        <span onclick="addEmoji('🤣', event)">🤣</span>
+        <span onclick="addEmoji('😍', event)">😍</span>
+        <span onclick="addEmoji('😒', event)">😒</span>
+        <span onclick="addEmoji('😭', event)">😭</span>
+        <span onclick="addEmoji('😩', event)">😩</span>
+        <span onclick="addEmoji('😤', event)">😤</span>
+        <span onclick="addEmoji('😡', event)">😡</span>
+        <span onclick="addEmoji('👍', event)">👍</span>
+        <span onclick="addEmoji('👎', event)">👎</span>
+        <span onclick="addEmoji('🔥', event)">🔥</span>
+        <span onclick="addEmoji('✨', event)">✨</span>
+        <span onclick="addEmoji('😎', event)">😎</span>
+        <span onclick="addEmoji('🤔', event)">🤔</span>
+        <span onclick="addEmoji('🤫', event)">🤫</span>
+        <span onclick="addEmoji('🤐', event)">🤐</span>
+        <span onclick="addEmoji('🙄', event)">🙄</span>
+        <span onclick="addEmoji('😴', event)">😴</span>
+        <span onclick="addEmoji('😷', event)">😷</span>
+        <span onclick="addEmoji('😈', event)">😈</span>
+        <span onclick="addEmoji('👻', event)">👻</span>
+        <span onclick="addEmoji('💀', event)">💀</span>
+        <span onclick="addEmoji('💩', event)">💩</span>
+        <span onclick="addEmoji('🤡', event)">🤡</span>
+        <span onclick="addEmoji('👽', event)">👽</span>
+        <span onclick="addEmoji('👾', event)">👾</span>
+        <span onclick="addEmoji('🤖', event)">🤖</span>
+        <span onclick="addEmoji('🎃', event)">🎃</span>
+        <span onclick="addEmoji('🎈', event)">🎈</span>
+        <span onclick="addEmoji('🎉', event)">🎉</span>
+        <span onclick="addEmoji('🎁', event)">🎁</span>
+        <span onclick="addEmoji('💎', event)">💎</span>
+        <span onclick="addEmoji('🚀', event)">🚀</span>
+        <span onclick="addEmoji('🛸', event)">🛸</span>
+        <span onclick="addEmoji('🧿', event)">🧿</span>
+        <span onclick="addEmoji('💯', event)">💯</span>
+        <span onclick="addEmoji('⚠️', event)">⚠️</span>
+        <span onclick="addEmoji('⛔', event)">⛔</span>
+        <span onclick="addEmoji('🔞', event)">🔞</span>
+    </div>
+</div>
 
                 <div class="input-container">
                     <button id="emoji-trigger" onclick="toggleEmojiPicker(event)">😊</button>
@@ -60,4 +94,5 @@
     <script src="script.js"></script>
 </body>
 </html>
+
 

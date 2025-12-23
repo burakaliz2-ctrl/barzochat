@@ -37,6 +37,7 @@
             <div id="chat"></div>
             <div class="bottom-area">
                 <div class="input-container">
+                    <button id="emoji-trigger" onclick="openSystemEmojis()">😊</button>
                     <input type="text" id="msgInput" placeholder="Mesajını yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
                     <button onclick="sendMessage()" id="send-btn">➤</button>
                 </div>
@@ -45,4 +46,5 @@
     </div>
     <script src="script.js"></script>
 </body>
+
 </html>

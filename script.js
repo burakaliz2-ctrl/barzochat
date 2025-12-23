@@ -2,95 +2,116 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// 1. MESAJLARI YERELE KAYDETME VE OKUMA
-function getLocalMessages() {
-    return JSON.parse(localStorage.getItem('barzoMessages')) || [];
-}
-
-function saveToLocal(msgData) {
-    let msgs = getLocalMessages();
-    // Eğer mesaj zaten yoksa ekle (ID kontrolü ile çiftleme engellenir)
-    if (!msgs.find(m => m.id === msgData.id)) {
-        msgs.push(msgData);
-        localStorage.setItem('barzoMessages', JSON.stringify(msgs));
+// GİRİŞ FONKSİYONU (auth.js ile uyumlu)
+async function login() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
+    
+    const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'login', username: u, password: p })
+    });
+    
+    const data = await res.json();
+    if (data.user) {
+        localStorage.setItem('barzoUser', u);
+        location.reload();
+    } else {
+        alert(data.error || "Giriş başarısız!");
     }
 }
 
-// 2. PUSHER BAĞLANTISI (MESAJLARI ALMA)
-function initPusher() {
-    const pusher = new Pusher('7c829d72a0184ee33bb3', { cluster: 'eu' });
-    presenceChannel = pusher.subscribe('presence-chat');
+// KAYIT FONKSİYONU
+async function register() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
     
-    presenceChannel.bind('new-message', d => {
-        // Başka cihazdan (veya kendimizden) gelen mesajı yakala
-        saveToLocal(d); // Hafızaya at
-        
-        // Eğer şu an o sohbetteysek ekrana bas
-        if (d.target === activeChat || d.target === 'general') {
-            renderMessage(d);
-        }
+    const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'register', username: u, password: p })
     });
+    
+    const data = await res.json();
+    if (data.success) {
+        alert("Kayıt başarılı, şimdi giriş yap!");
+    } else {
+        alert(data.error || "Kayıt hatası!");
+    }
 }
 
-// 3. MESAJ GÖNDERME (SENİN API'NE GİDER)
+// MESAJ GÖNDERME (send-message.js'deki 'action: new' yapısına uygun)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
     if (!val) return;
 
     const messageId = "msg-" + Date.now();
-    const msgData = { 
-        id: messageId, 
-        user: loggedInUser, 
-        text: val, 
-        target: activeChat 
-    };
+    
+    // Not: Ekrana basma işlemini Pusher'dan gelen veri yapacak (Senkronizasyon için)
+    // Ama hız için istersen renderMessage({ user: loggedInUser, text: val, id: messageId }) buraya eklenebilir.
 
-    // Not: Kendi ekranımızda hemen göstermek yerine Pusher'dan gelmesini bekleyebiliriz 
-    // ama hız için önce ekrana basıp sonra gönderiyoruz.
-    renderMessage(msgData);
-    saveToLocal(msgData);
     input.value = '';
 
-    // SUNUCUYA (GET/SEND SCRIPTLERİNE) GÖNDER
-    try {
-        await fetch('/api/send-message', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(msgData)
-        });
-    } catch (err) {
-        console.error("Mesaj sunucuya iletilemedi:", err);
-    }
+    await fetch('/api/send-message', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ 
+            action: 'new', 
+            user: loggedInUser, 
+            text: val, 
+            target: activeChat, 
+            id: messageId 
+        })
+    });
 }
 
-// 4. MESAJI EKRANA BASMA
-function renderMessage(data) {
-    // Eğer mesaj zaten ekrandaysa tekrar basma
-    if (document.getElementById(data.id)) return;
+// PUSHER DİNLEYİCİSİ (Sadece mesaj başkasından gelince değil, her durumda tetiklenir)
+function initPusher() {
+    const pusher = new Pusher('7c829d72a0184ee33bb3', { 
+        cluster: 'eu',
+        authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}`
+    });
+    presenceChannel = pusher.subscribe('presence-chat');
+    
+    presenceChannel.bind('new-message', d => {
+        // Gelen mesaj şu anki sohbete aitse ekrana bas
+        if (d.target === 'general' || d.target === loggedInUser || d.user === loggedInUser) {
+            renderMessage(d);
+        }
+    });
+}
 
+function renderMessage(data) {
+    if (document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
     const html = `
-        <div class="msg ${isOwn ? 'own' : 'other'}" id="${data.id}">
-            <small style="display:block; font-size:10px; opacity:0.6;">${data.user}</small>
+        <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
+            <small style="display:block; font-size:10px; opacity:0.7;">${data.user}</small>
             <span>${data.text || data.content}</span>
         </div>`;
-    
     const chat = document.getElementById('chat');
     chat.insertAdjacentHTML('beforeend', html);
     chat.scrollTop = chat.scrollHeight;
 }
 
-// 5. SAYFA AÇILDIĞINDA GEÇMİŞİ YÜKLE
+function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
+
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser) {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('chat-screen').style.display = 'flex';
-        
         initPusher();
-        
-        // Cihazın hafızasındaki eski mesajları ekrana dök
-        const history = getLocalMessages();
-        history.forEach(m => renderMessage(m));
+        switchChat('general');
     }
 });
+
+async function switchChat(chatId) {
+    activeChat = chatId;
+    document.getElementById('chat').innerHTML = '';
+    // Eski mesajları Turso'dan çek (get-messages.js ile uyumlu)
+    const res = await fetch(`/api/get-messages?dm=${chatId}&user=${loggedInUser}`);
+    const msgs = await res.json();
+    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-" + m.id }));
+}

@@ -18,13 +18,11 @@
     </div>
 
     <div id="chat-screen">
-        
         <div id="sidebar">
             <div class="sidebar-header">
                 <h3>Kişiler (<span id="online-counter">0</span>)</h3>
             </div>
-            <div id="user-list">
-                </div>
+            <div id="user-list"></div>
             <div class="sidebar-footer">
                 <button class="logout-btn" onclick="logout()">Çıkış Yap</button>
             </div>
@@ -36,43 +34,30 @@
                 <h2 id="active-chat-title">Genel Mevzu</h2>
             </header>
 
-            <div id="chat">
-                </div>
+            <div id="chat"></div>
 
             <div class="bottom-area">
-                
                 <div id="custom-emoji-picker">
-                    <span onclick="addEmoji('😂')">😂</span>
-                    <span onclick="addEmoji('😍')">😍</span>
-                    <span onclick="addEmoji('🔥')">🔥</span>
-                    <span onclick="addEmoji('👑')">👑</span>
-                    <span onclick="addEmoji('🧿')">🧿</span>
-                    <span onclick="addEmoji('🤣')">🤣</span>
-                    <span onclick="addEmoji('🤫')">🤫</span>
-                    <span onclick="addEmoji('💀')">💀</span>
-                    <span onclick="addEmoji('🚀')">🚀</span>
-                    <span onclick="addEmoji('❤️')">❤️</span>
-                    <span onclick="addEmoji('👍')">👍</span>
-                    <span onclick="addEmoji('🤡')">🤡</span>
-                    <span onclick="addEmoji('✅')">✅</span>
-                    <span onclick="addEmoji('🌟')">🌟</span>
-                    <span onclick="addEmoji('🤔')">🤔</span>
-                    <span onclick="addEmoji('💨')">💨</span>
+                    <span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('😍')">😍</span>
+                    <span onclick="addEmoji('🔥')">🔥</span><span onclick="addEmoji('👑')">👑</span>
+                    <span onclick="addEmoji('🧿')">🧿</span><span onclick="addEmoji('🤣')">🤣</span>
+                    <span onclick="addEmoji('🤫')">🤫</span><span onclick="addEmoji('💀')">💀</span>
+                    <span onclick="addEmoji('🚀')">🚀</span><span onclick="addEmoji('❤️')">❤️</span>
+                    <span onclick="addEmoji('👍')">👍</span><span onclick="addEmoji('🤡')">🤡</span>
+                    <span onclick="addEmoji('✅')">✅</span><span onclick="addEmoji('🌟')">🌟</span>
+                    <span onclick="addEmoji('🤔')">🤔</span><span onclick="addEmoji('💨')">💨</span>
+                    <span onclick="addEmoji('💯')">💯</span><span onclick="addEmoji('✨')">✨</span>
+                    <span onclick="addEmoji('👋')">👋</span><span onclick="addEmoji('🎉')">🎉</span>
                 </div>
 
                 <div class="input-container">
                     <button id="emoji-trigger" onclick="toggleEmojiPicker(event)">😊</button>
-                    
-                    <input type="text" id="msgInput" placeholder="Mesajını yaz..." 
-                           onfocus="hideEmojiPicker()"
-                           autocomplete="off">
-                           
+                    <input type="text" id="msgInput" placeholder="Mesajını yaz..." onfocus="hideEmojiPicker()" autocomplete="off">
                     <button id="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>

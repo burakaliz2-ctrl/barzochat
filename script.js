@@ -200,3 +200,16 @@ function showChat() {
     switchChat('general'); 
 }
 
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Tarayıcının otomatik yükle penceresini durdur
+    e.preventDefault();
+    deferredPrompt = e;
+    
+    // İstersen burada bir buton çıkarabilirsin "Uygulamayı Yükle" diye.
+    console.log("Uygulama yüklenmeye hazır! 🚀");
+    
+    // Otomatik olarak hemen sormasını istersen (bazı tarayıcılarda çalışır):
+    // deferredPrompt.prompt();
+});

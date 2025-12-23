@@ -2,15 +2,12 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// SES BİLDİRİMİ
-const notifySound = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3');
-
-// 1. SERVICE WORKER KAYDI
+// 1. SERVICE WORKER KAYDI (Üstten bildirim için)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('Bildirim servisi aktif ✅'))
-            .catch(err => console.log('Bildirim servisi başlatılamadı:', err));
+            .catch(err => console.log('Servis hatası:', err));
     });
 }
 
@@ -31,56 +28,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // SES KİLİDİNİ AÇMA & MEDYA PANELİNİ SIFIRLAMA
-    const unlock = () => { 
-        notifySound.play().then(() => { 
-            notifySound.pause(); 
-            notifySound.currentTime = 0; 
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.playbackState = 'none';
-            }
-        }).catch(() => {}); 
-        document.removeEventListener('click', unlock);
-        document.removeEventListener('touchstart', unlock);
-    };
-    document.addEventListener('click', unlock);
-    document.addEventListener('touchstart', unlock);
-
     // BİLDİRİM İZNİ İSTE
     if ("Notification" in window && Notification.permission !== "granted") {
         Notification.requestPermission();
     }
 });
 
-// GELİŞTİRİLMİŞ SES ÇALMA (Medya Panelini Gizler)
-function playNotificationSound() {
-    if ('mediaSession' in navigator) {
-        // Paneli boş bilgilerle sıfırla
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: '', artist: '', album: '', artwork: []
-        });
-        navigator.mediaSession.playbackState = 'none';
-    }
-
-    notifySound.currentTime = 0;
-    notifySound.play().then(() => {
-        // Çalmaya başladıktan hemen sonra paneli tekrar kapat
-        setTimeout(() => {
-            if ('mediaSession' in navigator) {
-                navigator.mediaSession.playbackState = 'none';
-            }
-        }, 100);
-    }).catch(err => console.log("Ses çalma hatası:", err));
-}
-
-// BİLDİRİM GÖSTERME (Kayan Bildirim)
+// ÜSTTEN BİLDİRİM GÖSTERME (Sessiz Kayan Bildirim)
 function showTopNotification(data) {
     if ("Notification" in window && Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification(data.user, {
                 body: data.text,
                 icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png',
-                vibrate: [200, 100, 200],
+                vibrate: [200, 100, 200], // Sadece titreşim
                 tag: 'chat-msg',
                 renotify: true
             });
@@ -136,9 +97,8 @@ function initPusher() {
             renderMessage(data);
         }
 
-        // SES VE BİLDİRİM (Başkasından geldiyse)
+        // SADECE BİLDİRİM (Ses Yok)
         if (data.user !== loggedInUser) {
-            playNotificationSound();
             showTopNotification(data);
         }
     });

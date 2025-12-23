@@ -46,6 +46,15 @@ function initPusher() {
             (data.user === activeChat && data.target === loggedInUser) || 
             (data.user === loggedInUser && data.target === activeChat)) {
             renderMessage(data);
+            
+            // Eğer gelen mesaj bizim az önce gönderdiğimiz mesajsa tık işaretini güncelle
+            if (data.user === loggedInUser) {
+                const tick = document.querySelector(`#msg-${data.id} .tick`);
+                if (tick) {
+                    tick.innerText = ' ✓✓';
+                    tick.style.color = '#4fc3f7'; // Mavi tık rengi
+                }
+            }
         }
     });
 
@@ -74,45 +83,83 @@ async function switchChat(t) {
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
     const msgs = await res.json();
     document.getElementById('chat').innerHTML = '';
-    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: m.id }));
+    msgs.forEach(m => renderMessage({ 
+        user: m.username, 
+        text: m.content, 
+        id: m.id, 
+        time: m.created_at,
+        isHistory: true // Eski mesajlar zaten ✓✓ ile gelir
+    }));
 };
 
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
-    if(!val) return;
+    if (!val) return;
     
-    // Mesaj verisini hazırla
+    const messageId = Date.now().toString();
+    const now = new Date();
+    const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+
     const messageData = { 
         action: 'new', 
         user: loggedInUser, 
         text: val, 
         target: activeChat, 
-        id: Date.now().toString() 
+        id: messageId,
+        time: timeStr
     };
-try {
+
+    // 1. ADIM: Ekrana hemen bas (Tek tıkla)
+    renderMessage(messageData);
+
+    // 2. ADIM: Kutuyu hemen temizle
+    input.value = '';
+
+    // 3. ADIM: Sunucuya gönder
+    try {
         await fetch('/api/send-message', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(messageData)
         });
     } catch (error) {
-        console.error("Mesaj gönderilemedi:", error);
-        alert("Mesaj gönderilirken bir hata oluştu.");
+        console.error("Hata:", error);
+        const tick = document.querySelector(`#msg-${messageId} .tick`);
+        if (tick) tick.innerText = ' ⚠️'; // Hata durumunda uyarı
     }
 };
+
 function renderMessage(data) {
-    // Eğer mesaj zaten ekrandaysa tekrar ekleme (ID kontrolü)
+    if (!data.id || !data.text) return;
     if (document.getElementById(`msg-${data.id}`)) return;
 
     const isOwn = data.user === loggedInUser;
-    const html = `<div id="msg-${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
-        <small style="font-size:10px; display:block; opacity:0.7;">${data.user}</small>
-        ${data.text}
-    </div>`;
+    
+    // Zaman bilgisini ayarla
+    let displayTime = data.time || "";
+    if (data.isHistory && !displayTime) {
+        // Geçmiş mesajlarda tarih verisi varsa işle
+        displayTime = ""; 
+    }
+
+    const html = `
+        <div id="msg-${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
+            <small style="font-size:10px; display:block; opacity:0.7;">${data.user}</small>
+            <div class="msg-content">
+                ${data.text}
+                <span style="font-size:9px; opacity:0.5; margin-left:8px;">
+                    ${displayTime} 
+                    ${isOwn ? `<span class="tick">${data.isHistory ? ' ✓✓' : ' ✓'}</span>` : ''}
+                </span>
+            </div>
+        </div>`;
+
     const c = document.getElementById('chat');
-    c.insertAdjacentHTML('beforeend', html);
-    c.scrollTop = c.scrollHeight;
+    if (c) {
+        c.insertAdjacentHTML('beforeend', html);
+        c.scrollTop = c.scrollHeight;
+    }
 };
 
 function logout() { localStorage.removeItem('barzoUser'); location.reload(); }

@@ -8,7 +8,20 @@ document.addEventListener('DOMContentLoaded', () => {
     else document.getElementById('auth-screen').style.display = 'flex';
 });
 
-function openSystemEmojis() { document.getElementById('msgInput').focus(); }
+// MENÜ AÇMA (3 ÇİZGİ)
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.toggle('open');
+}
+
+// EMOJİ BUTONU (KLAVYEYİ AÇAR)
+function openSystemEmojis() {
+    const input = document.getElementById('msgInput');
+    if (input) {
+        input.focus();
+        input.click(); // Bazı mobillerde klavyeyi zorlar
+    }
+}
 
 function showChat() {
     document.getElementById('auth-screen').style.display = 'none';
@@ -54,7 +67,8 @@ function initPusher() {
                     </div>`);
             }
         });
-        document.getElementById('online-counter').innerText = presenceChannel.members.count;
+        const counter = document.getElementById('online-counter');
+        if(counter) counter.innerText = presenceChannel.members.count;
     };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
@@ -62,8 +76,8 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ SİLME
-function startPress(id) { pressTimer = setTimeout(() => { if (confirm("Silinsin mi?")) deleteMessage(id); }, 800); }
+// MESAJ SİLME (BASILI TUTMA)
+function startPress(id) { pressTimer = setTimeout(() => { if (confirm("Mesajı silmek istiyor musun?")) deleteMessage(id); }, 800); }
 function endPress() { clearTimeout(pressTimer); }
 async function deleteMessage(id) {
     const cleanId = id.replace('msg-', '');
@@ -100,7 +114,7 @@ async function sendMessage() {
     const val = input.value.trim();
     if (!val) return;
     const messageId = "msg-" + Date.now();
-    renderMessage({ action: 'new', user: loggedInUser, text: val, target: activeChat, id: messageId });
+    renderMessage({ user: loggedInUser, text: val, target: activeChat, id: messageId });
     input.value = '';
     await fetch('/api/send-message', {
         method: 'POST',
@@ -111,13 +125,13 @@ async function sendMessage() {
 
 async function switchChat(t) {
     activeChat = t;
-    document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
+    const title = document.getElementById('active-chat-title');
+    if(title) title.innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
     document.getElementById('chat').innerHTML = '';
-    if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
+    if(window.innerWidth <= 768) document.getElementById('sidebar').classList.remove('open');
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
     const msgs = await res.json();
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id, isHistory: true }));
 }
 
 function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }

@@ -39,15 +39,17 @@ document.addEventListener('DOMContentLoaded', () => {
 function showTopNotification(data) {
     if ("Notification" in window && Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
+            const classicIcon = 'https://cdn-icons-png.flaticon.com/512/589/589708.png?v=1';
+            
             registration.showNotification(data.user, {
                 body: data.text,
-                // Klasik mavi mesaj balonu ikonu
-                icon: 'https://cdn-icons-png.flaticon.com/512/589/589708.png', 
-                // Bildirim çubuğundaki küçük simge
-                badge: 'https://cdn-icons-png.flaticon.com/512/589/589708.png',
+                icon: classicIcon,   // Büyük ikon (Mesaj balonu)
+                badge: classicIcon,  // Bildirim çubuğundaki küçük ikon
+                image: classicIcon,  // Bazı cihazlarda bildirimi genişletince çıkan büyük resim
                 vibrate: [200, 100, 200],
                 tag: 'chat-msg',
-                renotify: true
+                renotify: true,
+                data: { url: window.location.origin } // Tıklayınca siteye gitmesi için
             });
         });
     }
@@ -185,4 +187,5 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
+
 

@@ -205,3 +205,16 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
+
+function playNotification() {
+    notifySound.currentTime = 0;
+    notifySound.play().then(() => {
+        // Medya kontrol panelinde görünmesini engellemek için session'ı hemen durduruyoruz
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'none';
+            // Paneldeki bilgileri temizle
+            navigator.mediaSession.metadata = null;
+        }
+    }).catch(err => console.log("Ses çalma hatası:", err));
+}
+

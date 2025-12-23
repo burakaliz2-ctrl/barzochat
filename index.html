@@ -5,47 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Barzo Chat</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 </head>
 <body>
+
     <div id="auth-screen" class="screen">
         <div class="auth-box">
-            <h2>Barzo Chat</h2>
-            <input type="text" id="auth-user" placeholder="Racon İsmi">
-            <input type="password" id="auth-pass" placeholder="Şifre">
-            <button onclick="auth('login')">Giriş Yap</button>
-            <button onclick="auth('register')" class="secondary">Kayıt Ol</button>
+            <h2>Hoşgeldin Barzo</h2>
+            <input type="text" id="username" placeholder="Rumuzun nedir?">
+            <button onclick="login()">Mevzuya Gir</button>
         </div>
     </div>
 
-    <div id="chat-screen" class="screen" style="display:none;">
-        <aside id="sidebar">
+    <div id="chat-screen">
+        
+        <div id="sidebar">
             <div class="sidebar-header">
-                <h3>Kişiler <span id="online-counter">0</span></h3>
+                <h3>Kişiler (<span id="online-counter">0</span>)</h3>
             </div>
-            <div id="user-list"></div>
+            <div id="user-list">
+                </div>
             <div class="sidebar-footer">
-                <button onclick="logout()" class="logout-btn">Çıkış Yap</button>
+                <button class="logout-btn" onclick="logout()">Çıkış Yap</button>
             </div>
-        </aside>
+        </div>
 
-        <main id="main-chat">
+        <div id="main-chat">
             <header>
                 <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
-                <strong id="active-chat-title">Genel Mevzu</strong>
+                <h2 id="active-chat-title">Genel Mevzu</h2>
             </header>
-            <div id="chat"></div>
+
+            <div id="chat">
+                </div>
+
             <div class="bottom-area">
+                
+                <div id="custom-emoji-picker">
+                    <span onclick="addEmoji('😂')">😂</span>
+                    <span onclick="addEmoji('😍')">😍</span>
+                    <span onclick="addEmoji('🔥')">🔥</span>
+                    <span onclick="addEmoji('👑')">👑</span>
+                    <span onclick="addEmoji('🧿')">🧿</span>
+                    <span onclick="addEmoji('🤣')">🤣</span>
+                    <span onclick="addEmoji('🤫')">🤫</span>
+                    <span onclick="addEmoji('💀')">💀</span>
+                    <span onclick="addEmoji('🚀')">🚀</span>
+                    <span onclick="addEmoji('❤️')">❤️</span>
+                    <span onclick="addEmoji('👍')">👍</span>
+                    <span onclick="addEmoji('🤡')">🤡</span>
+                    <span onclick="addEmoji('✅')">✅</span>
+                    <span onclick="addEmoji('🌟')">🌟</span>
+                    <span onclick="addEmoji('🤔')">🤔</span>
+                    <span onclick="addEmoji('💨')">💨</span>
+                </div>
+
                 <div class="input-container">
-                    <button id="emoji-trigger" onclick="openSystemEmojis()">😊</button>
-                    <input type="text" id="msgInput" placeholder="Mesajını yaz..." onkeypress="if(event.key==='Enter') sendMessage()">
-                    <button onclick="sendMessage()" id="send-btn">➤</button>
+                    <button id="emoji-trigger" onclick="toggleEmojiPicker(event)">😊</button>
+                    
+                    <input type="text" id="msgInput" placeholder="Mesajını yaz..." 
+                           onfocus="hideEmojiPicker()"
+                           autocomplete="off">
+                           
+                    <button id="send-btn" onclick="sendMessage()">➤</button>
                 </div>
             </div>
-        </main>
+        </div>
     </div>
+
     <script src="script.js"></script>
 </body>
-
 </html>
-

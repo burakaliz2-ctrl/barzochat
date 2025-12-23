@@ -3,10 +3,10 @@ let activeChat = 'general';
 let presenceChannel = null;
 let deferredPrompt;
 
-// 1. SERVICE WORKER VE YÜKLEME KONTROLLERİ
+// 1. SERVICE WORKER VE YÜKLEME
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=9').then(reg => reg.update());
+        navigator.serviceWorker.register('/sw.js?v=10').then(reg => reg.update());
     });
 }
 
@@ -17,50 +17,22 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 // 2. KAYDIRMA (SWIPE) ÖZELLİĞİ
 let touchStartX = 0;
-document.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
+document.addEventListener('touchstart', (e) => { 
+    touchStartX = e.changedTouches[0].screenX; 
+}, {passive: true});
+
 document.addEventListener('touchend', (e) => {
     const touchEndX = e.changedTouches[0].screenX;
     const diff = touchEndX - touchStartX;
     const sidebar = document.getElementById('sidebar');
+    
+    // Sağdan sola kaydırma (Kenardan başlarsa menüyü aç)
     if (diff > 70 && touchStartX < 80) sidebar?.classList.add('open');
+    // Soldan sağa kaydırma (Menüyü kapat)
     if (diff < -70) sidebar?.classList.remove('open');
 }, {passive: true});
 
-// 3. EMOJI SİSTEMİ (Çoklu Seçim İçin Kesin Çözüm)
-function toggleEmojiPicker(e) { 
-    if(e) e.stopPropagation(); 
-    const picker = document.getElementById('custom-emoji-picker');
-    picker?.classList.toggle('show');
-}
-
-function addEmoji(emoji, event) { 
-    if(event) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    const input = document.getElementById('msgInput'); 
-    if(input) { 
-        input.value += emoji; 
-        input.focus(); 
-    }
-}
-
-function hideEmojiPicker() { 
-    document.getElementById('custom-emoji-picker')?.classList.remove('show'); 
-}
-
-// Boşluğa tıklayınca emoji ve menüyü kapat (Emoji seçerken kapanmaz)
-document.addEventListener('click', (e) => {
-    const picker = document.getElementById('custom-emoji-picker');
-    const emojiBtn = document.querySelector('.emoji-btn');
-    if (picker && picker.classList.contains('show')) {
-        if (!picker.contains(e.target) && e.target !== emojiBtn) {
-            hideEmojiPicker();
-        }
-    }
-});
-
-// 4. SIDEBAR VE SOHBET GEÇİŞİ
+// 3. MENÜ VE SOHBET GEÇİŞLERİ
 function toggleSidebar() { document.getElementById('sidebar')?.classList.toggle('open'); }
 function closeSidebar() { document.getElementById('sidebar')?.classList.remove('open'); }
 
@@ -77,10 +49,10 @@ async function switchChat(t) {
         const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
         const msgs = await res.json();
         msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
-    } catch (err) { console.log("Mesaj yükleme hatası:", err); }
+    } catch (err) { console.log("Hata:", err); }
 }
 
-// 5. PUSHER VE KİŞİ LİSTESİ (Düzeltilen Kısım)
+// 4. PUSHER VE KİŞİ LİSTESİ (STABİL)
 function initPusher() {
     if (!loggedInUser) return;
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
@@ -123,7 +95,7 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// 6. MESAJ GÖNDERME VE GÖRÜNTÜLEME
+// 5. MESAJ GÖNDERME
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
@@ -145,7 +117,7 @@ async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input ? input.value.trim() : "";
     if (!val) return;
-    hideEmojiPicker();
+    
     const messageId = "msg-" + Date.now();
     renderMessage({ user: loggedInUser, text: val, id: messageId });
     input.value = '';
@@ -156,7 +128,7 @@ async function sendMessage() {
     });
 }
 
-// 7. OTURUM KONTROLLERİ
+// 6. GİRİŞ VE BAŞLATMA
 function login() { 
     const u = document.getElementById('username').value.trim(); 
     if(u) { localStorage.setItem('barzoUser', u); location.reload(); } 

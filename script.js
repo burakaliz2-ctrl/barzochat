@@ -8,10 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     else document.getElementById('auth-screen').style.display = 'flex';
 });
 
-// Emoji Butonuna Basınca Klavyeyi Aç
+// WhatsApp Tarzı: Klavye Odaklama
 function openSystemEmojis() {
     const input = document.getElementById('msgInput');
-    input.focus(); // Klavyeyi tetikler, kullanıcı klavyeden emoji seçer
+    input.focus();
 }
 
 function showChat() {
@@ -41,21 +41,25 @@ function initPusher() {
         }
     });
 
-    // Mesaj silme olayını dinle
     presenceChannel.bind('delete-message', data => {
         const el = document.getElementById(data.id);
         if (el) el.remove();
     });
 
+    // Sidebar'daki Kişi Listesini Güncelle
     const updateUI = () => {
         const list = document.getElementById('user-list');
         list.innerHTML = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Mevzu</div>`;
         presenceChannel.members.each(m => {
             if (m.id && m.id !== "undefined" && m.id !== loggedInUser) {
-                list.insertAdjacentHTML('beforeend', `<div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')">🟢 ${m.id}</div>`);
+                list.insertAdjacentHTML('beforeend', `
+                    <div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')">
+                        <span style="color:#22c55e;">●</span> ${m.id}
+                    </div>`);
             }
         });
-        document.getElementById('online-counter').innerText = presenceChannel.members.count;
+        const counter = document.getElementById('online-counter');
+        if(counter) counter.innerText = presenceChannel.members.count;
     };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
@@ -63,18 +67,13 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ SİLME (Basılı Tutma Mantığı)
+// Mesaj Silme (Basılı Tutma)
 function startPress(id) {
     pressTimer = window.setTimeout(() => {
-        if (confirm("Bu mesajı silmek istiyor musun?")) {
-            deleteMessage(id);
-        }
-    }, 800); // 800ms basılı tutunca tetiklenir
+        if (confirm("Bu mesajı silmek istiyor musun?")) deleteMessage(id);
+    }, 800);
 }
-
-function endPress() {
-    clearTimeout(pressTimer);
-}
+function endPress() { clearTimeout(pressTimer); }
 
 async function deleteMessage(id) {
     const cleanId = id.replace('msg-', '');
@@ -88,15 +87,13 @@ async function deleteMessage(id) {
 function renderMessage(data) {
     if (!data.id || !data.text || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
-    
-    // Mesaj ID'sini 'msg-' formatında ayarla
     const msgId = data.id.startsWith('msg-') ? data.id : 'msg-' + data.id;
 
     const html = `
         <div id="${msgId}" class="msg ${isOwn ? 'own' : 'other'}" 
              onmousedown="startPress('${msgId}')" onmouseup="endPress()"
              ontouchstart="startPress('${msgId}')" ontouchend="endPress()">
-            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7;">${data.user}</small>` : ''}
+            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7; font-weight:bold; margin-bottom:2px;">${data.user}</small>` : ''}
             <div style="display:flex; align-items:flex-end; gap:5px;">
                 <span>${data.text}</span>
                 ${isOwn ? `<span class="tick" style="font-size:9px; opacity:0.6;">${data.isHistory ? ' ✓✓' : ' ✓'}</span>` : ''}
@@ -129,7 +126,8 @@ async function sendMessage() {
 
 async function switchChat(t) {
     activeChat = t;
-    document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
+    const title = document.getElementById('active-chat-title');
+    if(title) title.innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
     document.getElementById('chat').innerHTML = '';
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
     const msgs = await res.json();

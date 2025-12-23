@@ -37,7 +37,7 @@ if (data.user !== loggedInUser) {
     // Ses çalma (Önceki kodlarınla aynı)
     notifySound.currentTime = 0;
     notifySound.play().catch(() => {});
-}
+};
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
@@ -206,5 +206,6 @@ function showChat() {
     initPusher(); 
     switchChat('general'); 
 }
+
 
 

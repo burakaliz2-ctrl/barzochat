@@ -6,7 +6,17 @@ const notifySound = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/
 
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser && loggedInUser !== "undefined") showChat();
-    else document.getElementById('auth-screen').style.display = 'flex';
+    else if (document.getElementById('auth-screen')) document.getElementById('auth-screen').style.display = 'flex';
+
+    // Enter Tuşu Dinleyici
+    const msgInput = document.getElementById('msgInput');
+    if (msgInput) {
+        msgInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    }
 
     const unlock = () => { 
         notifySound.play().then(() => { notifySound.pause(); notifySound.currentTime = 0; }); 
@@ -15,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', unlock);
 });
 
-// EMOJI & SIDEBAR FONKSIYONLARI
+// EMOJI & SIDEBAR
 function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
 function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
 function addEmoji(emoji) { const input = document.getElementById('msgInput'); input.value += emoji; input.focus(); }

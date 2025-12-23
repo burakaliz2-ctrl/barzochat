@@ -213,7 +213,7 @@ async function handleFileUpload(e) {
         };
     };
     reader.readAsDataURL(file);
-}
+};
 
 // MESAJI EKRANA BASAN FONKSİYON (Resim Kontrollü)
 function renderMessage(data) {
@@ -248,4 +248,5 @@ function renderMessage(data) {
 }
     reader.readAsDataURL(file);
 };
+
 

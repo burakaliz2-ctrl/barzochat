@@ -1,51 +1,34 @@
 let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
-let deferredPrompt; // Yükleme istemini saklamak için
+let deferredPrompt;
 
-// 1. SERVICE WORKER KAYDI VE GÜNCELLEME
+// 1. SERVICE WORKER KAYDI
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js?v=3').then(reg => {
+        navigator.serviceWorker.register('/sw.js?v=4').then(reg => {
             reg.update();
-            console.log('Bildirim servisi (SW) hazır ✅');
-        }).catch(err => console.log('SW Kayıt Hatası:', err));
+            console.log('Servis Hazır ✅');
+        }).catch(err => console.log('SW Hatası:', err));
     });
 }
 
-// 2. OTOMATİK UYGULAMA YÜKLEME TETİKLEYİCİSİ
+// 2. OTOMATİK YÜKLEME İSTEMİ
 window.addEventListener('beforeinstallprompt', (e) => {
-    // Tarayıcının varsayılan istemini durdur
     e.preventDefault();
-    // İstemi sakla
     deferredPrompt = e;
-
-    // Kullanıcı sayfaya girdikten 2 saniye sonra yükleme penceresini aç
-    setTimeout(() => {
-        if (deferredPrompt) {
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then((choiceResult) => {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('Kullanıcı uygulamayı yüklemeyi kabul etti');
-                }
-                deferredPrompt = null;
-            });
-        }
-    }, 2000);
+    // Kullanıcı bir yere tıkladığında pencereyi açmak için hazırda tutar
 });
 
-// 3. BİLDİRİM İZNİ KONTROLÜ
-function checkNotificationPermission() {
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "default") {
-        Notification.requestPermission().then(permission => {
-            if (permission === "granted") console.log("Bildirim izni verildi.");
-        });
+// Sayfada herhangi bir yere ilk tıklamada yükleme isteğini zorla
+window.addEventListener('click', () => {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt = null;
     }
-}
+}, { once: true });
 
 document.addEventListener('DOMContentLoaded', () => {
-    // EKRAN KONTROLÜ
     const auth = document.getElementById('auth-screen');
     const chat = document.getElementById('chat-screen');
 
@@ -56,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (chat) chat.style.display = 'none';
     }
 
-    // ENTER TUŞU DİNLEYİCİ
     const msgInput = document.getElementById('msgInput');
     if (msgInput) {
         msgInput.addEventListener('keypress', (e) => {
@@ -64,30 +46,71 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // İZİN İSTE
-    checkNotificationPermission();
+    // Bildirim izni iste
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
 });
 
-// 4. ÜSTTEN BİLDİRİM GÖSTERME (Modern İkonlu)
+// --- MENÜ (SIDEBAR) KONTROLLERİ ---
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('open');
+    }
+}
+
+// Menüyü dışarıya tıklayınca veya bir şey seçince kapatmak için
+function closeSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar && sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+    }
+}
+
+// --- SOHBET DEĞİŞTİRME (Hata burada düzeltildi) ---
+async function switchChat(t) {
+    activeChat = t;
+    
+    // 1. Menüyü kapat (Mobilde seçince menünün gitmesi için)
+    closeSidebar();
+    
+    // 2. Başlığı güncelle
+    const title = document.getElementById('active-chat-title');
+    if (title) title.innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
+    
+    // 3. Mesaj alanını temizle ve yükle
+    const chatBox = document.getElementById('chat');
+    if (chatBox) chatBox.innerHTML = '';
+    
+    try {
+        const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
+        const msgs = await res.json();
+        msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
+    } catch (err) {
+        console.log("Mesaj yükleme hatası:", err);
+    }
+}
+
+// --- BİLDİRİM VE DİĞER FONKSİYONLAR ---
+
 function showTopNotification(data) {
     if ("Notification" in window && Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
-            const modernIcon = 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png';
-            
+            const icon = 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png';
             registration.showNotification(data.user, {
                 body: data.text,
-                icon: modernIcon,
-                badge: modernIcon,
+                icon: icon,
+                badge: icon,
                 vibrate: [200, 100, 200],
                 tag: 'chat-msg',
-                renotify: true,
-                data: { url: window.location.origin }
+                renotify: true
             });
         });
     }
 }
 
-// MESAJI EKRANA YAZDIRMA
 function renderMessage(data) {
     if (!data.id || document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
@@ -95,7 +118,7 @@ function renderMessage(data) {
     
     const html = `
         <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
-            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold; margin-bottom:2px;">${data.user}</small>` : ''}
+            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold;">${data.user}</small>` : ''}
             <span>${data.text}</span>
             <div class="msg-info">
                 <span class="msg-time">${time}</span>
@@ -110,10 +133,8 @@ function renderMessage(data) {
     }
 }
 
-// PUSHER VE ÇEVRİMİÇİ LİSTESİ
 function initPusher() {
     if (!loggedInUser) return;
-    
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
         authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}`
@@ -128,7 +149,6 @@ function initPusher() {
         if ((isGeneral && activeChat === 'general') || isDirect) {
             renderMessage(data);
         }
-
         if (data.user !== loggedInUser) {
             showTopNotification(data);
         }
@@ -150,7 +170,6 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-// MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input ? input.value.trim() : "";
@@ -166,29 +185,14 @@ async function sendMessage() {
     });
 }
 
-// SOHBET DEĞİŞTİRME
-async function switchChat(t) {
-    activeChat = t;
-    const title = document.getElementById('active-chat-title');
-    if (title) title.innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
-    const chatBox = document.getElementById('chat');
-    if (chatBox) chatBox.innerHTML = '';
-    const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
-    const msgs = await res.json();
-    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
-}
-
 function login() { const u = document.getElementById('username').value.trim(); if(u) { localStorage.setItem('barzoUser', u); location.reload(); } }
 function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
 function showChat() { 
-    const auth = document.getElementById('auth-screen');
-    const chat = document.getElementById('chat-screen');
-    if (auth) auth.style.display = 'none';
-    if (chat) chat.style.display = 'flex'; 
+    if (document.getElementById('auth-screen')) document.getElementById('auth-screen').style.display = 'none';
+    if (document.getElementById('chat-screen')) document.getElementById('chat-screen').style.display = 'flex'; 
     initPusher(); 
     switchChat('general'); 
 }
 function toggleEmojiPicker(e) { e.stopPropagation(); document.getElementById('custom-emoji-picker').classList.toggle('show'); }
-function hideEmojiPicker() { document.getElementById('custom-emoji-picker').classList.remove('show'); }
+function hideEmojiPicker() { if(document.getElementById('custom-emoji-picker')) document.getElementById('custom-emoji-picker').classList.remove('show'); }
 function addEmoji(emoji) { const input = document.getElementById('msgInput'); if(input) { input.value += emoji; input.focus(); } }
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }

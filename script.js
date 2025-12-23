@@ -2,7 +2,27 @@ let loggedInUser = localStorage.getItem('barzoUser');
 let activeChat = 'general';
 let presenceChannel = null;
 
-// SWIPE (KAYDIRMA) AYARI
+// 1. SERVICE WORKER & BİLDİRİM
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js?v=20251223').then(reg => reg.update());
+    });
+}
+
+function showTopNotification(data) {
+    if (Notification.permission === "granted") {
+        navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(data.user, {
+                body: data.text,
+                icon: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png',
+                tag: 'chat-msg',
+                renotify: true
+            });
+        });
+    }
+}
+
+// 2. SWIPE (KAYDIRMA) - SIDEBARI TAM KAPATIR
 let touchStartX = 0;
 let touchStartY = 0;
 
@@ -17,17 +37,17 @@ document.addEventListener('touchend', (e) => {
     const sidebar = document.getElementById('sidebar');
 
     if (Math.abs(diffX) > Math.abs(diffY)) {
-        if (diffX > 80 && touchStartX < 70) sidebar?.classList.add('open'); // Sağa çek: Aç
-        if (diffX < -80) sidebar?.classList.remove('open'); // Sola çek: Kapat
+        if (diffX > 80 && touchStartX < 70) sidebar?.classList.add('open'); // Sağa çek aç
+        if (diffX < -80) sidebar?.classList.remove('open'); // Sola çek tam kapat
     }
 }, {passive: true});
 
 function toggleSidebar() { document.getElementById('sidebar')?.classList.toggle('open'); }
 
-// SOHBET İŞLEMLERİ
+// 3. SOHBET MANTIĞI
 async function switchChat(t) {
     activeChat = t;
-    document.getElementById('sidebar')?.classList.remove('open');
+    document.getElementById('sidebar')?.classList.remove('open'); // Seçince kapat
     document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
     const chatBox = document.getElementById('chat');
     chatBox.innerHTML = '';
@@ -36,7 +56,7 @@ async function switchChat(t) {
         const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
         const msgs = await res.json();
         msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: "msg-"+m.id }));
-    } catch (err) { console.log(err); }
+    } catch (err) { console.error("Mesajlar yüklenemedi:", err); }
 }
 
 function renderMessage(data) {
@@ -45,9 +65,9 @@ function renderMessage(data) {
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const html = `
         <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
-            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold; display:block;">${data.user}</small>` : ''}
+            ${!isOwn ? `<small style="font-size:10px; color:#a1a1aa; font-weight:bold; display:block; margin-bottom:2px;">${data.user}</small>` : ''}
             <span>${data.text}</span>
-            <div class="msg-info"><span>${time}</span>${isOwn ? `<span>✓✓</span>` : ''}</div>
+            <div class="msg-info"><span>${time}</span>${isOwn ? `<span style="color:#a78bfa">✓✓</span>` : ''}</div>
         </div>`;
     const c = document.getElementById('chat');
     c.insertAdjacentHTML('beforeend', html);
@@ -68,14 +88,17 @@ async function sendMessage() {
     });
 }
 
-// PUSHER & LOGIN (2025-12-12 Tabanlı)
+// 4. PUSHER & LOGIN (Kayıtlı Kodlar [cite: 2025-12-12, 2025-12-23])
 function initPusher() {
     if (!loggedInUser) return;
     const pusher = new Pusher('7c829d72a0184ee33bb3', { cluster: 'eu', authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}` });
     presenceChannel = pusher.subscribe('presence-chat');
     
     presenceChannel.bind('new-message', d => {
-        if ((d.target === 'general' && activeChat === 'general') || (d.user === activeChat && d.target === loggedInUser) || (d.user === loggedInUser && d.target === activeChat)) renderMessage(d);
+        const isGeneral = d.target === 'general';
+        const isDirect = (d.user === activeChat && d.target === loggedInUser) || (d.user === loggedInUser && d.target === activeChat);
+        if ((isGeneral && activeChat === 'general') || isDirect) renderMessage(d);
+        if (d.user !== loggedInUser) showTopNotification(d);
     });
 
     const updateUI = () => {
@@ -101,6 +124,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('chat-screen').style.display = 'flex'; 
         initPusher(); switchChat('general');
+    } else {
+        document.getElementById('auth-screen').style.display = 'flex';
     }
     document.getElementById('msgInput')?.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+    if (Notification.permission === "default") Notification.requestPermission();
 });

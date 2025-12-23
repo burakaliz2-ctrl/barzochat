@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else document.getElementById('auth-screen').style.display = 'flex';
 });
 
+// GİRİŞ VE KAYIT FONKSİYONU
 async function auth(action) {
     const u = document.getElementById('auth-user').value.trim();
     const p = document.getElementById('auth-pass').value.trim();
@@ -22,8 +23,13 @@ async function auth(action) {
         if(action === 'login') {
             localStorage.setItem('barzoUser', u);
             location.reload();
-        } else alert("Kayıt ok! Giriş yap.");
-    } else alert("Hata oluştu.");
+        } else {
+            alert("Racon kesildi! Şimdi giriş yap.");
+        }
+    } else {
+        const data = await res.json();
+        alert(data.error || "Hata oluştu.");
+    }
 };
 
 function showChat() {
@@ -41,32 +47,43 @@ function initPusher() {
 
     presenceChannel = pusher.subscribe('presence-chat');
 
+    // YENİ MESAJ GELDİĞİNDE
     presenceChannel.bind('new-message', data => {
-        if ((data.target === 'general' && activeChat === 'general') || 
-            (data.user === activeChat && data.target === loggedInUser) || 
-            (data.user === loggedInUser && data.target === activeChat)) {
+        const isGeneral = (data.target === 'general' && activeChat === 'general');
+        const isDM = (data.user === activeChat && data.target === loggedInUser) || 
+                     (data.user === loggedInUser && data.target === activeChat);
+
+        if (isGeneral || isDM) {
             renderMessage(data);
             
-            // Eğer gelen mesaj bizim az önce gönderdiğimiz mesajsa tık işaretini güncelle
+            // Onay işareti güncelleme (Mavi Tık)
             if (data.user === loggedInUser) {
                 const tick = document.querySelector(`#msg-${data.id} .tick`);
                 if (tick) {
                     tick.innerText = ' ✓✓';
-                    tick.style.color = '#4fc3f7'; // Mavi tık rengi
+                    tick.style.color = '#4fc3f7';
                 }
             }
         }
     });
 
+    // ONLINE LİSTESİ VE SAYACI GÜNCELLEME
     const updateUI = () => {
         const list = document.getElementById('user-list');
         list.innerHTML = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Mevzu</div>`;
+        
         presenceChannel.members.each(m => {
             if (m.id && m.id !== "undefined" && m.id !== loggedInUser) {
-                list.insertAdjacentHTML('beforeend', `<div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')">🟢 ${m.id}</div>`);
+                list.insertAdjacentHTML('beforeend', `
+                    <div class="user-item ${activeChat===m.id?'active':''}" onclick="switchChat('${m.id}')">
+                        <span style="color:#22c55e;">●</span> ${m.id}
+                    </div>`);
             }
         });
-        document.getElementById('online-counter').innerText = presenceChannel.members.count;
+        
+        // Online Sayacı
+        const counter = document.getElementById('online-counter');
+        if (counter) counter.innerText = presenceChannel.members.count;
     };
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
@@ -74,10 +91,12 @@ function initPusher() {
     presenceChannel.bind('pusher:member_removed', updateUI);
 };
 
+// SOHBET DEĞİŞTİRME
 async function switchChat(t) {
     activeChat = t;
     document.getElementById('active-chat-title').innerText = t === 'general' ? 'Genel Mevzu' : `👤 ${t}`;
-    document.getElementById('chat').innerHTML = '<div style="color:gray; padding:10px;">Yükleniyor...</div>';
+    document.getElementById('chat').innerHTML = '<div style="color:gray; padding:10px; font-size:12px;">Yükleniyor...</div>';
+    
     if(window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
 
     const res = await fetch(`/api/get-messages?dm=${t}&user=${loggedInUser}`);
@@ -87,17 +106,18 @@ async function switchChat(t) {
         user: m.username, 
         text: m.content, 
         id: m.id, 
-        time: m.created_at,
-        isHistory: true // Eski mesajlar zaten ✓✓ ile gelir
+        time: m.created_at, // Veritabanından gelen zaman
+        isHistory: true 
     }));
 };
 
+// MESAJ GÖNDERME (İyimser Güncelleme & Anında Temizleme)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
     if (!val) return;
     
-    const messageId = Date.now().toString();
+    const messageId = "msg-" + Date.now();
     const now = new Date();
     const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
@@ -110,13 +130,10 @@ async function sendMessage() {
         time: timeStr
     };
 
-    // 1. ADIM: Ekrana hemen bas (Tek tıkla)
+    // Ekrana bas ve kutuyu sil
     renderMessage(messageData);
-
-    // 2. ADIM: Kutuyu hemen temizle
     input.value = '';
 
-    // 3. ADIM: Sunucuya gönder
     try {
         await fetch('/api/send-message', {
             method: 'POST',
@@ -125,32 +142,27 @@ async function sendMessage() {
         });
     } catch (error) {
         console.error("Hata:", error);
-        const tick = document.querySelector(`#msg-${messageId} .tick`);
-        if (tick) tick.innerText = ' ⚠️'; // Hata durumunda uyarı
+        const tick = document.querySelector(`#${messageId} .tick`);
+        if (tick) tick.innerText = ' ⚠️';
     }
 };
 
+// MESAJI EKRANA BASMA
 function renderMessage(data) {
     if (!data.id || !data.text) return;
-    if (document.getElementById(`msg-${data.id}`)) return;
+    if (document.getElementById(data.id)) return;
 
     const isOwn = data.user === loggedInUser;
-    
-    // Zaman bilgisini ayarla
     let displayTime = data.time || "";
-    if (data.isHistory && !displayTime) {
-        // Geçmiş mesajlarda tarih verisi varsa işle
-        displayTime = ""; 
-    }
 
     const html = `
-        <div id="msg-${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
-            <small style="font-size:10px; display:block; opacity:0.7;">${data.user}</small>
-            <div class="msg-content">
-                ${data.text}
-                <span style="font-size:9px; opacity:0.5; margin-left:8px;">
+        <div id="${data.id}" class="msg ${isOwn ? 'own' : 'other'}">
+            ${!isOwn ? `<small style="font-size:10px; display:block; opacity:0.7; font-weight:bold;">${data.user}</small>` : ''}
+            <div style="display: flex; align-items: flex-end; gap: 8px;">
+                <span>${data.text}</span>
+                <span style="font-size:9px; opacity:0.5; white-space: nowrap;">
                     ${displayTime} 
-                    ${isOwn ? `<span class="tick">${data.isHistory ? ' ✓✓' : ' ✓'}</span>` : ''}
+                    ${isOwn ? `<span class="tick" style="font-weight:bold;">${data.isHistory ? ' ✓✓' : ' ✓'}</span>` : ''}
                 </span>
             </div>
         </div>`;
@@ -162,5 +174,18 @@ function renderMessage(data) {
     }
 };
 
-function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+// EKSTRA ÖZELLİKLER (Emoji ve Sidebar)
+function addEmoji(e) {
+    const input = document.getElementById('msgInput');
+    input.value += e;
+    input.focus();
+};
+
+function logout() {
+    localStorage.removeItem('barzoUser');
+    location.reload();
+};
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+};

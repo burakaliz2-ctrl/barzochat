@@ -15,12 +15,9 @@ async function initPWA() {
     }
 }
 
-// 2. GELİŞMİŞ BİLDİRİM TETİKLEYİCİ (Ekran Kontrollü)
+// 2. BİLDİRİM TETİKLEYİCİ
 function triggerNotification(data) {
-    // Mesajı biz attıysak bildirim gelmesin
     if (data.user === loggedInUser) return;
-
-    // EĞER: Sekme gizliyse (arka plandaysa) VEYA aktif sohbet bu mesajın sahibi değilse
     const isTabHidden = document.visibilityState === 'hidden';
     const isDifferentChat = activeChat !== (data.target === 'general' ? 'general' : data.user);
 
@@ -49,33 +46,17 @@ document.addEventListener('touchend', e => {
     if (diff < -80 && sidebar.classList.contains('open')) sidebar.classList.remove('open');
 }, {passive: true});
 
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-
-// 4. GİRİŞ & MESAJ GÖNDERME
-async function handleLogin() {
-    const u = document.getElementById('username').value.trim();
-    const p = document.getElementById('password').value.trim();
-    const res = await fetch('/api/auth', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'login', username: u, password: p })
-    });
-    const data = await res.json();
-    if (data.user) {
-        localStorage.setItem('barzoUser', data.user.username);
-        location.reload();
-    } else alert(data.error);
-}
-
+// 4. MESAJ GÖNDERME
 async function sendMessage() {
     const input = document.getElementById('msgInput');
-    if (!input.value.trim()) return;
-    const msgData = { action: 'new', user: loggedInUser, text: input.value, target: activeChat, id: "msg-" + Date.now() };
+    const val = input.value.trim();
+    if (!val) return;
+    const msgData = { action: 'new', user: loggedInUser, text: val, target: activeChat, id: "msg-" + Date.now() };
     input.value = '';
     await fetch('/api/send-message', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(msgData) });
 }
 
-// 5. PUSHER & GERÇEK ZAMANLI AKIŞ
+// 5. PUSHER & AKIŞ
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
@@ -88,12 +69,7 @@ function initPusher() {
         const isForMe = (d.target === loggedInUser && activeChat === d.user);
         const isFromMe = (d.user === loggedInUser);
 
-        // Mesajı ekrana sadece uygunsa bas, ama her zaman bildirimi kontrol et
-        if (isGeneral || isForMe || isFromMe) {
-            renderMessage(d);
-        }
-        
-        // Ekran kapalıysa veya başka sohbetteysek bildirimi ÇALIŞTIR
+        if (isGeneral || isForMe || isFromMe) { renderMessage(d); }
         triggerNotification(d);
     });
 
@@ -114,7 +90,6 @@ function updateUI() {
         }
     });
     userList.innerHTML = html;
-    document.getElementById('online-counter').innerText = presenceChannel.members.count;
 }
 
 async function switchChat(chatId) {
@@ -128,10 +103,20 @@ async function switchChat(chatId) {
     updateUI();
 }
 
+// 6. MESAJ GÖRÜNÜMÜNÜ DÜZENLE (BURASI GÜNCELLENDİ)
 function renderMessage(data) {
     if (document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
-    const html = `<div class="msg ${isOwn ? 'own' : 'other'}" id="${data.id}"><small>${data.user}</small>${data.text || data.content}</div>`;
+    
+    // Kendi mesajımızda ismi göstermiyoruz, karşı tarafta gösteriyoruz
+    const nameLabel = isOwn ? '' : `<small style="display:block; font-size:10px; margin-bottom:2px; opacity:0.8;">${data.user}</small>`;
+    
+    const html = `
+        <div class="msg ${isOwn ? 'own' : 'other'}" id="${data.id}">
+            ${nameLabel}
+            <div class="msg-text">${data.text || data.content}</div>
+        </div>`;
+    
     const chatArea = document.getElementById('chat');
     chatArea.insertAdjacentHTML('beforeend', html);
     chatArea.scrollTop = chatArea.scrollHeight;

@@ -3,48 +3,46 @@ let activeChat = 'general';
 let presenceChannel = null;
 let touchStartX = 0;
 
-// 1. SERVICE WORKER & BİLDİRİM İZNİ (Kesin Çözüm İçin)
-async function initPWAandNotifications() {
+// 1. SERVICE WORKER & PWA KAYDI
+async function initPWA() {
     if ('serviceWorker' in navigator) {
         try {
-            // sw.js dosyasını kaydet
             const reg = await navigator.serviceWorker.register('/sw.js');
-            console.log('Service Worker Kayıtlı:', reg);
-
-            // Bildirim İzni İste
-            if ("Notification" in window) {
-                const permission = await Notification.requestPermission();
-                if (permission === "granted") {
-                    console.log("Bildirim izni verildi.");
-                }
-            }
+            console.log('SW Kayıt Başarılı');
         } catch (err) {
-            console.error('PWA/Bildirim Hatası:', err);
+            console.log('SW Kayıt Hatası:', err);
         }
     }
 }
 
-// 2. ARKA PLAN BİLDİRİM TETİKLEYİCİ
+// 2. BİLDİRİM İZNİ İSTE (Kullanıcı etkileşimi ile)
+async function askNotificationPermission() {
+    if ("Notification" in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+            console.log("Bildirim izni alındı!");
+        }
+    }
+}
+
+// 3. ARKA PLAN BİLDİRİM TETİKLEYİCİ
 function triggerNotification(data) {
-    // Mesaj bizden geldiyse veya sekme o an açıksa bildirim atma
     if (data.user === loggedInUser || document.visibilityState === 'visible') return;
 
     if (Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
             registration.showNotification(`Barzo Chat: ${data.user}`, {
                 body: data.text || data.content,
-                icon: '/icon.png',
-                badge: '/icon.png',
+                icon: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png',
                 vibrate: [200, 100, 200],
-                tag: 'new-msg-' + data.user, // Aynı kişiden gelenleri grupla
-                renotify: true,
-                data: { url: window.location.origin }
+                badge: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png',
+                tag: 'barzo-msg'
             });
         });
     }
 }
 
-// 3. MOBİL SWIPE (SIDEBAR)
+// 4. MOBİL SWIPE (SIDEBAR)
 document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
 document.addEventListener('touchend', e => {
     const diff = e.changedTouches[0].screenX - touchStartX;
@@ -55,7 +53,7 @@ document.addEventListener('touchend', e => {
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// 4. GİRİŞ & MESAJ GÖNDERME (ENTER DAHİL)
+// 5. GİRİŞ & MESAJLAŞMA
 async function handleLogin() {
     const u = document.getElementById('username').value.trim();
     const p = document.getElementById('password').value.trim();
@@ -84,7 +82,7 @@ async function sendMessage() {
     });
 }
 
-// 5. PUSHER & ÖZEL MESAJLAŞMA
+// 6. PUSHER & ÖZEL MESAJ
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
@@ -100,17 +98,16 @@ function initPusher() {
         if (isGeneral || isForMe || isFromMe) {
             renderMessage(d);
         } else {
-            // Başka odadaysak veya ekran kapalıysa bildirimi patlat
             triggerNotification(d);
         }
     });
 
-    presenceChannel.bind('pusher:subscription_succeeded', updateOnlineUI);
-    presenceChannel.bind('pusher:member_added', updateOnlineUI);
-    presenceChannel.bind('pusher:member_removed', updateOnlineUI);
+    presenceChannel.bind('pusher:subscription_succeeded', updateUI);
+    presenceChannel.bind('pusher:member_added', updateUI);
+    presenceChannel.bind('pusher:member_removed', updateUI);
 }
 
-function updateOnlineUI() {
+function updateUI() {
     const userList = document.getElementById('user-list');
     let html = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Sohbet</div>`;
     presenceChannel.members.each(member => {
@@ -121,7 +118,6 @@ function updateOnlineUI() {
         }
     });
     userList.innerHTML = html;
-    document.getElementById('online-counter').innerText = presenceChannel.members.count;
 }
 
 async function switchChat(chatId) {
@@ -144,7 +140,6 @@ function renderMessage(data) {
     chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-// 6. DOM BAŞLATICI
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser) {
         document.getElementById('auth-screen').style.display = 'none';
@@ -153,8 +148,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const msgInput = document.getElementById('msgInput');
         msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
-        initPWAandNotifications();
+        initPWA();
         initPusher();
         switchChat('general');
+        
+        // İlk tıklamada bildirim izni iste
+        document.body.addEventListener('click', askNotificationPermission, { once: true });
     }
 });

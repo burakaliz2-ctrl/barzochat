@@ -3,30 +3,31 @@ let activeChat = 'general';
 let presenceChannel = null;
 let touchStartX = 0;
 
-// 1. SERVICE WORKER VE BİLDİRİM İZNİ BAŞLATICI
-async function initServiceWorker() {
+// 1. SERVICE WORKER & BİLDİRİM İZNİ (Kesin Çözüm İçin)
+async function initPWAandNotifications() {
     if ('serviceWorker' in navigator) {
         try {
+            // sw.js dosyasını kaydet
             const reg = await navigator.serviceWorker.register('/sw.js');
-            console.log('Service Worker aktif:', reg);
-            
-            // Kullanıcı giriş yapmışsa bildirim izni iste
-            if (loggedInUser && "Notification" in window) {
+            console.log('Service Worker Kayıtlı:', reg);
+
+            // Bildirim İzni İste
+            if ("Notification" in window) {
                 const permission = await Notification.requestPermission();
-                console.log("Bildirim izni durumu:", permission);
+                if (permission === "granted") {
+                    console.log("Bildirim izni verildi.");
+                }
             }
         } catch (err) {
-            console.error('SW Kayıt Hatası:', err);
+            console.error('PWA/Bildirim Hatası:', err);
         }
     }
 }
 
-// 2. SİSTEM BİLDİRİMİ TETİKLEYİCİ (Ekran Kapalıyken de Çalışır)
-function showSystemNotification(data) {
-    // Biz gönderdiysek veya o an o sohbete bakıyorsak bildirim çıkarma
-    if (data.user === loggedInUser || (document.visibilityState === 'visible' && activeChat === (data.target === 'general' ? 'general' : data.user))) {
-        return;
-    }
+// 2. ARKA PLAN BİLDİRİM TETİKLEYİCİ
+function triggerNotification(data) {
+    // Mesaj bizden geldiyse veya sekme o an açıksa bildirim atma
+    if (data.user === loggedInUser || document.visibilityState === 'visible') return;
 
     if (Notification.permission === "granted") {
         navigator.serviceWorker.ready.then(registration => {
@@ -35,14 +36,15 @@ function showSystemNotification(data) {
                 icon: '/icon.png',
                 badge: '/icon.png',
                 vibrate: [200, 100, 200],
-                tag: 'new-message', // Aynı kişiden gelenleri grupla
-                renotify: true
+                tag: 'new-msg-' + data.user, // Aynı kişiden gelenleri grupla
+                renotify: true,
+                data: { url: window.location.origin }
             });
         });
     }
 }
 
-// 3. MOBİL SWIPE (SIDEBAR AÇ/KAPAT)
+// 3. MOBİL SWIPE (SIDEBAR)
 document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
 document.addEventListener('touchend', e => {
     const diff = e.changedTouches[0].screenX - touchStartX;
@@ -53,12 +55,10 @@ document.addEventListener('touchend', e => {
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// 4. GİRİŞ VE ÇIKIŞ İŞLEMLERİ
+// 4. GİRİŞ & MESAJ GÖNDERME (ENTER DAHİL)
 async function handleLogin() {
     const u = document.getElementById('username').value.trim();
     const p = document.getElementById('password').value.trim();
-    if (!u || !p) return alert("Boş bırakma!");
-
     const res = await fetch('/api/auth', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -71,24 +71,12 @@ async function handleLogin() {
     } else alert(data.error);
 }
 
-function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
-
-// 5. MESAJ GÖNDERME (ENTER DAHİL)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
     if (!val) return;
-
-    const msgData = { 
-        action: 'new', 
-        user: loggedInUser, 
-        text: val, 
-        target: activeChat, 
-        id: "msg-" + Date.now() 
-    };
-
+    const msgData = { action: 'new', user: loggedInUser, text: val, target: activeChat, id: "msg-" + Date.now() };
     input.value = '';
-
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -96,34 +84,14 @@ async function sendMessage() {
     });
 }
 
-// 6. ÖZEL MESAJLAŞMA VE SOHBET GEÇMİŞİ
-async function switchChat(chatId) {
-    activeChat = chatId;
-    document.getElementById('chat').innerHTML = '';
-    document.getElementById('active-chat-title').innerText = chatId === 'general' ? 'Genel Mevzu' : `@${chatId}`;
-    
-    // Geçmiş mesajları Turso'dan çek
-    const res = await fetch(`/api/get-messages?dm=${chatId}&user=${loggedInUser}`);
-    const msgs = await res.json();
-    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: m.id, target: m.target }));
-    
-    if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
-    updateOnlineUI(); // Listeyi güncelle ki aktif olan belli olsun
-}
-
-// 7. PUSHER VE GERÇEK ZAMANLI AKIŞ
+// 5. PUSHER & ÖZEL MESAJLAŞMA
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
         authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}`
     });
-
     presenceChannel = pusher.subscribe('presence-chat');
 
-    presenceChannel.bind('pusher:subscription_succeeded', updateOnlineUI);
-    presenceChannel.bind('pusher:member_added', updateOnlineUI);
-    presenceChannel.bind('pusher:member_removed', updateOnlineUI);
-    
     presenceChannel.bind('new-message', d => {
         const isGeneral = (d.target === 'general' && activeChat === 'general');
         const isForMe = (d.target === loggedInUser && activeChat === d.user);
@@ -132,16 +100,18 @@ function initPusher() {
         if (isGeneral || isForMe || isFromMe) {
             renderMessage(d);
         } else {
-            // Arka plandaysa veya başka bir sohbetteyse bildirim at
-            showSystemNotification(d);
+            // Başka odadaysak veya ekran kapalıysa bildirimi patlat
+            triggerNotification(d);
         }
     });
+
+    presenceChannel.bind('pusher:subscription_succeeded', updateOnlineUI);
+    presenceChannel.bind('pusher:member_added', updateOnlineUI);
+    presenceChannel.bind('pusher:member_removed', updateOnlineUI);
 }
 
 function updateOnlineUI() {
     const userList = document.getElementById('user-list');
-    if (!userList || !presenceChannel) return;
-
     let html = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Sohbet</div>`;
     presenceChannel.members.each(member => {
         if (member.id !== loggedInUser) {
@@ -154,30 +124,36 @@ function updateOnlineUI() {
     document.getElementById('online-counter').innerText = presenceChannel.members.count;
 }
 
+async function switchChat(chatId) {
+    activeChat = chatId;
+    document.getElementById('chat').innerHTML = '';
+    document.getElementById('active-chat-title').innerText = chatId === 'general' ? 'Genel Mevzu' : `@${chatId}`;
+    const res = await fetch(`/api/get-messages?dm=${chatId}&user=${loggedInUser}`);
+    const msgs = await res.json();
+    msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: m.id, target: m.target }));
+    if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
+}
+
 function renderMessage(data) {
     if (document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
     const html = `<div class="msg ${isOwn ? 'own' : 'other'}" id="${data.id}">
-        <small style="display:block; font-size:10px; opacity:0.7;">${data.user}</small>
-        ${data.text || data.content}
-    </div>`;
+        <small style="display:block; font-size:10px; opacity:0.7;">${data.user}</small>${data.text || data.content}</div>`;
     const chatArea = document.getElementById('chat');
     chatArea.insertAdjacentHTML('beforeend', html);
     chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-// 8. DOM BAŞLATICI
+// 6. DOM BAŞLATICI
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser) {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('chat-screen').style.display = 'flex';
         
-        // Enter Tuşu Dinleme
-        document.getElementById('msgInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
+        const msgInput = document.getElementById('msgInput');
+        msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
-        initServiceWorker();
+        initPWAandNotifications();
         initPusher();
         switchChat('general');
     }

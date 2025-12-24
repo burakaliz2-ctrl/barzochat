@@ -90,17 +90,20 @@ function initPusher() {
     });
     presenceChannel = pusher.subscribe('presence-chat');
 
-    presenceChannel.bind('new-message', d => {
-        const isGeneral = (d.target === 'general' && activeChat === 'general');
-        const isForMe = (d.target === loggedInUser && activeChat === d.user);
-        const isFromMe = (d.user === loggedInUser);
+presenceChannel.bind('new-message', d => {
+    console.log("Yeni mesaj geldi:", d); // 1. Kontrol: Mesaj Pusher'a geliyor mu?
+    
+    const isGeneral = (d.target === 'general' && activeChat === 'general');
+    const isForMe = (d.target === loggedInUser && activeChat === d.user);
+    const isFromMe = (d.user === loggedInUser);
 
-        if (isGeneral || isForMe || isFromMe) {
-            renderMessage(d);
-        } else {
-            triggerNotification(d);
-        }
-    });
+    if (isGeneral || isForMe || isFromMe) {
+        renderMessage(d);
+    } else {
+        console.log("Bildirim tetikleniyor..."); // 2. Kontrol: Bildirim kodu çalışıyor mu?
+        triggerNotification(d);
+    }
+});
 
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
     presenceChannel.bind('pusher:member_added', updateUI);
@@ -156,3 +159,4 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.addEventListener('click', askNotificationPermission, { once: true });
     }
 });
+

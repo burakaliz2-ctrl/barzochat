@@ -3,63 +3,20 @@ let activeChat = 'general';
 let presenceChannel = null;
 let touchStartX = 0;
 
-// MOBİL SWIPE
+// 1. MOBİL SWIPE (SAĞA ÇEKİNCE KİŞİLERİ AÇMA)
 document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
 document.addEventListener('touchend', e => {
     const diff = e.changedTouches[0].screenX - touchStartX;
     const sidebar = document.getElementById('sidebar');
+    // En soldan (ilk 60px) sağa doğru 80px çekilirse aç
     if (diff > 80 && touchStartX < 60) sidebar.classList.add('open');
+    // Sola çekilirse kapat
     if (diff < -80 && sidebar.classList.contains('open')) sidebar.classList.remove('open');
 }, {passive: true});
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// 1. ENTER TUŞU İLE MESAJ GÖNDERME
-document.addEventListener('DOMContentLoaded', () => {
-    const msgInput = document.getElementById('msgInput');
-    if (msgInput) {
-        msgInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault(); // Sayfa yenilenmesini engelle
-                sendMessage();
-            }
-        });
-    }
-
-    // Bildirim izni iste
-    if ("Notification" in window) {
-        Notification.requestPermission();
-    }
-});
-
-// 2. KAYAN BİLDİRİM FONKSİYONU
-function showBrowserNotification(data) {
-    // Eğer mesajı biz gönderdiysek veya sekme şu an aktifse bildirim çıkarma
-    if (data.user === loggedInUser || document.visibilityState === 'visible') return;
-
-    if (Notification.permission === "granted") {
-        const notification = new Notification(`Yeni Mesaj: ${data.user}`, {
-            body: data.text || data.content,
-            icon: '/icon.png' // Varsa bir ikon yolu
-        });
-
-        notification.onclick = () => {
-            window.focus();
-            notification.close();
-        };
-    }
-}
-
-// 3. PUSHER BIND İÇİNE EKLEME
-// initPusher fonksiyonundaki presenceChannel.bind('new-message', ...) kısmını şuna güncelle:
-presenceChannel.bind('new-message', d => {
-    if (d.target === 'general' || d.target === loggedInUser || d.user === loggedInUser) {
-        renderMessage(d);
-        showBrowserNotification(d); // Bildirimi tetikle
-    }
-});
-
-// 1. GİRİŞ VE KAYIT (api/auth.js ile uyumlu)
+// 2. GİRİŞ & KAYIT
 async function handleLogin() {
     const u = document.getElementById('username').value.trim();
     const p = document.getElementById('password').value.trim();
@@ -84,18 +41,28 @@ async function handleRegister() {
         body: JSON.stringify({ action: 'register', username: u, password: p })
     });
     const data = await res.json();
-    if (data.success) alert("Kayıt başarılı! Giriş yapabilirsiniz.");
+    if (data.success) alert("Kayıt başarılı! Giriş yapabilirsin.");
     else alert(data.error);
 }
 
 function logout() { localStorage.removeItem('barzoUser'); location.reload(); }
 
-// 2. MESAJ GÖNDERME (api/send-message.js ile uyumlu)
+// 3. MESAJ GÖNDERME (ENTER DESTEĞİ DAHİL)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
-    if (!input.value.trim()) return;
-    const msgData = { action: 'new', user: loggedInUser, text: input.value, target: activeChat, id: "msg-" + Date.now() };
-    input.value = '';
+    const val = input.value.trim();
+    if (!val) return;
+
+    const msgData = { 
+        action: 'new', 
+        user: loggedInUser, 
+        text: val, 
+        target: activeChat, 
+        id: "msg-" + Date.now() 
+    };
+
+    input.value = ''; // Inputu hemen temizle
+
     await fetch('/api/send-message', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -103,18 +70,34 @@ async function sendMessage() {
     });
 }
 
-// 3. PUSHER & ONLINE LİSTESİ
+// 4. BİLDİRİM SİSTEMİ
+function showNotification(data) {
+    // Mesaj bizden geldiyse veya sayfa o an açıksa bildirim atma
+    if (data.user === loggedInUser || document.visibilityState === 'visible') return;
+
+    if (Notification.permission === "granted") {
+        const n = new Notification(`Barzo Chat: ${data.user}`, {
+            body: data.text || data.content,
+            icon: '/favicon.ico'
+        });
+        n.onclick = () => { window.focus(); n.close(); };
+    }
+}
+
+// 5. PUSHER & ONLINE LİSTESİ
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
         authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}`
     });
+
     presenceChannel = pusher.subscribe('presence-chat');
 
     const updateUI = () => {
         const userList = document.getElementById('user-list');
         const counter = document.getElementById('online-counter');
         let html = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Sohbet</div>`;
+        
         presenceChannel.members.each(member => {
             if (member.id !== loggedInUser) {
                 html += `<div class="user-item ${activeChat===member.id?'active':''}" onclick="switchChat('${member.id}')">
@@ -129,8 +112,12 @@ function initPusher() {
     presenceChannel.bind('pusher:subscription_succeeded', updateUI);
     presenceChannel.bind('pusher:member_added', updateUI);
     presenceChannel.bind('pusher:member_removed', updateUI);
+    
     presenceChannel.bind('new-message', d => {
-        if (d.target === 'general' || d.target === loggedInUser || d.user === loggedInUser) renderMessage(d);
+        if (d.target === 'general' || d.target === loggedInUser || d.user === loggedInUser) {
+            renderMessage(d);
+            showNotification(d);
+        }
     });
 }
 
@@ -138,28 +125,45 @@ async function switchChat(chatId) {
     activeChat = chatId;
     document.getElementById('chat').innerHTML = '';
     document.getElementById('active-chat-title').innerText = chatId === 'general' ? 'Genel Sohbet' : chatId;
+    
     const res = await fetch(`/api/get-messages?dm=${chatId}&user=${loggedInUser}`);
     const msgs = await res.json();
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: m.id }));
-    if (window.innerWidth < 768) toggleSidebar();
+    
+    // Mobilde birine tıklayınca menüyü kapat
+    if (window.innerWidth < 768) {
+        document.getElementById('sidebar').classList.remove('open');
+    }
 }
 
 function renderMessage(data) {
     if (document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
     const html = `<div class="msg ${isOwn ? 'own' : 'other'}" id="${data.id}">
-        <small style="display:block; font-size:10px; opacity:0.7;">${data.user}</small>${data.text || data.content}</div>`;
-    const chat = document.getElementById('chat');
-    chat.insertAdjacentHTML('beforeend', html);
-    chat.scrollTop = chat.scrollHeight;
+        <small style="display:block; font-size:10px; opacity:0.7;">${data.user}</small>
+        ${data.text || data.content}
+    </div>`;
+    const chatArea = document.getElementById('chat');
+    chatArea.insertAdjacentHTML('beforeend', html);
+    chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+// 6. BAŞLATICI
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser) {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('chat-screen').style.display = 'flex';
+        
+        // Enter tuşu dinleyici
+        const msgInput = document.getElementById('msgInput');
+        msgInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Bildirim izni iste
+        if ("Notification" in window) Notification.requestPermission();
+
         initPusher();
         switchChat('general');
     }
 });
-

@@ -14,6 +14,51 @@ document.addEventListener('touchend', e => {
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
+// 1. ENTER TUŞU İLE MESAJ GÖNDERME
+document.addEventListener('DOMContentLoaded', () => {
+    const msgInput = document.getElementById('msgInput');
+    if (msgInput) {
+        msgInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // Sayfa yenilenmesini engelle
+                sendMessage();
+            }
+        });
+    }
+
+    // Bildirim izni iste
+    if ("Notification" in window) {
+        Notification.requestPermission();
+    }
+});
+
+// 2. KAYAN BİLDİRİM FONKSİYONU
+function showBrowserNotification(data) {
+    // Eğer mesajı biz gönderdiysek veya sekme şu an aktifse bildirim çıkarma
+    if (data.user === loggedInUser || document.visibilityState === 'visible') return;
+
+    if (Notification.permission === "granted") {
+        const notification = new Notification(`Yeni Mesaj: ${data.user}`, {
+            body: data.text || data.content,
+            icon: '/icon.png' // Varsa bir ikon yolu
+        });
+
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+    }
+}
+
+// 3. PUSHER BIND İÇİNE EKLEME
+// initPusher fonksiyonundaki presenceChannel.bind('new-message', ...) kısmını şuna güncelle:
+presenceChannel.bind('new-message', d => {
+    if (d.target === 'general' || d.target === loggedInUser || d.user === loggedInUser) {
+        renderMessage(d);
+        showBrowserNotification(d); // Bildirimi tetikle
+    }
+});
+
 // 1. GİRİŞ VE KAYIT (api/auth.js ile uyumlu)
 async function handleLogin() {
     const u = document.getElementById('username').value.trim();
@@ -117,3 +162,4 @@ document.addEventListener('DOMContentLoaded', () => {
         switchChat('general');
     }
 });
+

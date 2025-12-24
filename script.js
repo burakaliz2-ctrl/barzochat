@@ -15,16 +15,18 @@ async function initPWA() {
     }
 }
 
-// 2. BİLDİRİM TETİKLEYİCİ
+// 2. TEMİZ BİLDİRİM TETİKLEYİCİ (İsim Tekrarı Giderildi)
 function triggerNotification(data) {
     if (data.user === loggedInUser) return;
+    
     const isTabHidden = document.visibilityState === 'hidden';
     const isDifferentChat = activeChat !== (data.target === 'general' ? 'general' : data.user);
 
     if (isTabHidden || isDifferentChat) {
         if (Notification.permission === "granted") {
             navigator.serviceWorker.ready.then(reg => {
-                reg.showNotification(`Barzo: ${data.user}`, {
+                // Başlık: Gönderen, Body: Sadece Mesaj
+                reg.showNotification(data.user, {
                     body: data.text || data.content,
                     icon: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png',
                     badge: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png',
@@ -37,7 +39,7 @@ function triggerNotification(data) {
     }
 }
 
-// 3. MOBİL SWIPE
+// 3. MOBİL SWIPE & SIDEBAR
 document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
 document.addEventListener('touchend', e => {
     const diff = e.changedTouches[0].screenX - touchStartX;
@@ -46,7 +48,9 @@ document.addEventListener('touchend', e => {
     if (diff < -80 && sidebar.classList.contains('open')) sidebar.classList.remove('open');
 }, {passive: true});
 
-// 4. MESAJ GÖNDERME
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// 4. MESAJ GÖNDERME (ENTER DESTEKLİ)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
@@ -56,7 +60,7 @@ async function sendMessage() {
     await fetch('/api/send-message', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(msgData) });
 }
 
-// 5. PUSHER & AKIŞ
+// 5. PUSHER & ÖZEL MESAJLAŞMA
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
@@ -73,12 +77,12 @@ function initPusher() {
         triggerNotification(d);
     });
 
-    presenceChannel.bind('pusher:subscription_succeeded', updateUI);
-    presenceChannel.bind('pusher:member_added', updateUI);
-    presenceChannel.bind('pusher:member_removed', updateUI);
+    presenceChannel.bind('pusher:subscription_succeeded', updateOnlineUI);
+    presenceChannel.bind('pusher:member_added', updateOnlineUI);
+    presenceChannel.bind('pusher:member_removed', updateOnlineUI);
 }
 
-function updateUI() {
+function updateOnlineUI() {
     const userList = document.getElementById('user-list');
     if(!userList) return;
     let html = `<div class="user-item ${activeChat==='general'?'active':''}" onclick="switchChat('general')">🌍 Genel Sohbet</div>`;
@@ -90,6 +94,7 @@ function updateUI() {
         }
     });
     userList.innerHTML = html;
+    document.getElementById('online-counter').innerText = presenceChannel.members.count;
 }
 
 async function switchChat(chatId) {
@@ -100,16 +105,16 @@ async function switchChat(chatId) {
     const msgs = await res.json();
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: m.id }));
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
-    updateUI();
+    updateOnlineUI();
 }
 
-// 6. MESAJ GÖRÜNÜMÜNÜ DÜZENLE (BURASI GÜNCELLENDİ)
+// 6. MESAJ GÖRÜNÜMÜ (İsim Kalabalığı Temizlendi)
 function renderMessage(data) {
     if (document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
     
-    // Kendi mesajımızda ismi göstermiyoruz, karşı tarafta gösteriyoruz
-    const nameLabel = isOwn ? '' : `<small style="display:block; font-size:10px; margin-bottom:2px; opacity:0.8;">${data.user}</small>`;
+    // Kendi mesajımızda isim yazmaz, başkasında yazar.
+    const nameLabel = isOwn ? '' : `<small style="display:block; font-size:10px; margin-bottom:2px; opacity:0.8; color:#a855f7;">${data.user}</small>`;
     
     const html = `
         <div class="msg ${isOwn ? 'own' : 'other'}" id="${data.id}">
@@ -122,6 +127,7 @@ function renderMessage(data) {
     chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+// 7. BAŞLATICI
 document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser) {
         document.getElementById('auth-screen').style.display = 'none';

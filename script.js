@@ -123,3 +123,36 @@ document.addEventListener('DOMContentLoaded', () => {
         switchChat('general');
     }
 });
+// KİŞİ LİSTESİNİ GÜNCELLEME (Online olanlar)
+function updatePresenceList() {
+    const userList = document.getElementById('user-list');
+    const counter = document.getElementById('online-counter');
+    if (!presenceChannel || !userList) return;
+
+    let usersHtml = `<div class="user-item ${activeChat === 'general' ? 'active' : ''}" onclick="switchChat('general')">
+        <div class="online-dot"></div> Genel Sohbet
+    </div>`;
+
+    let count = 0;
+    presenceChannel.members.each(member => {
+        count++;
+        if (member.id !== loggedInUser) {
+            usersHtml += `
+                <div class="user-item ${activeChat === member.id ? 'active' : ''}" onclick="switchChat('${member.id}')">
+                    <div class="online-dot"></div> ${member.id}
+                </div>`;
+        }
+    });
+
+    userList.innerHTML = usersHtml;
+    if (counter) counter.innerText = count;
+}
+
+// MESAJ GÖNDERME BUTONU İÇİN OLAY DİNLEYİCİ
+document.addEventListener('DOMContentLoaded', () => {
+    // ... diğer kodlar ...
+    const sendBtn = document.getElementById('send-btn');
+    if (sendBtn) {
+        sendBtn.onclick = sendMessage; // HTML'deki onclick yerine buradan bağladık
+    }
+});

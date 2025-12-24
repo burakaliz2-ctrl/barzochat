@@ -1,7 +1,6 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
-    <link rel="manifest" href="/manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Barzo Chat</title>
@@ -10,19 +9,15 @@
 </head>
 <body>
 
-<div id="auth-screen" class="screen">
-    <div class="auth-box">
-        <h2>Barzo Chat</h2>
-        <div class="input-group">
-            <input type="text" id="username" placeholder="Kullanıcı Adı" autocomplete="off">
+    <div id="auth-screen" class="screen">
+        <div class="auth-box">
+            <h2>Barzo Chat</h2>
+            <input type="text" id="username" placeholder="Kullanıcı Adı">
+            <input type="password" id="password" placeholder="Şifre">
+            <button class="login-btn" onclick="handleLogin()">Giriş Yap</button>
+            <button class="register-btn" onclick="handleRegister()">Kayıt Ol</button>
         </div>
-        <div class="input-group">
-            <input type="password" id="password" placeholder="Şifre" autocomplete="off">
-        </div>
-        <button class="login-btn" onclick="handleLogin()">Giriş Yap</button>
-        <button class="register-btn" onclick="handleRegister()">Kayıt Ol</button>
     </div>
-</div>
 
     <div id="chat-screen" style="display:none;">
         <div id="sidebar">
@@ -38,15 +33,14 @@
         <div id="main-chat">
             <header>
                 <button id="menu-toggle" onclick="toggleSidebar()">☰</button>
-                <h2 id="active-chat-title">Genel Mevzu</h2>
+                <h2 id="active-chat-title">Genel Sohbet</h2>
             </header>
             <div id="chat"></div>
-            <div id="typing-indicator"></div>
-           <div class="bottom-area">
-            <div class="input-container">
-                <input type="text" id="msgInput" placeholder="Mesajını yaz..." autocomplete="off">
-                <button id="send-btn">➤</button>
-            </div>
+            <div class="bottom-area">
+                <div class="input-container">
+                    <input type="text" id="msgInput" placeholder="Mesajını yaz..." autocomplete="off">
+                    <button id="send-btn" onclick="sendMessage()">➤</button>
+                </div>
             </div>
         </div>
     </div>
@@ -54,4 +48,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-

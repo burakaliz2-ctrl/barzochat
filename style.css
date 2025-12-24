@@ -22,3 +22,39 @@ body { background: #0a0a0c; color: white; height: 100dvh; overflow: hidden; }
     #sidebar { position: fixed; left: 0; transform: translateX(-100%); height: 100%; width: 80%; z-index: 1000; }
     #sidebar.open { transform: translateX(0); }
 }
+/* GİRİŞ EKRANI MOR BUTON STİLLERİ */
+.auth-box h2 { color: white; margin-bottom: 25px; }
+.auth-box input { 
+    width: 100%; padding: 14px; margin-bottom: 15px; border-radius: 10px;
+    border: none; background: #e8f0fe; color: #333; font-size: 16px;
+}
+.login-btn { 
+    width: 100%; padding: 14px; background: #7226fa; color: white; 
+    border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-bottom: 10px;
+}
+.register-btn { 
+    width: 100%; padding: 14px; background: #27272a; color: white; 
+    border: none; border-radius: 10px; cursor: pointer;
+}
+
+/* MESAJ YAZMA ALANI STİLLERİ */
+.bottom-area { padding: 15px; background: #141418; border-top: 1px solid #27272a; }
+.input-container { 
+    display: flex; align-items: center; gap: 10px; background: #1f1f23; 
+    border-radius: 25px; padding: 5px 15px; width: 100%;
+}
+#msgInput { 
+    flex: 1; background: none; border: none; color: white; 
+    padding: 12px; outline: none; font-size: 16px;
+}
+#send-btn { background: none; border: none; color: #7226fa; font-size: 24px; cursor: pointer; }
+
+/* KİŞİ LİSTESİ (SIDEBAR) STİLLERİ */
+.user-item {
+    padding: 12px; margin-bottom: 5px; border-radius: 10px;
+    cursor: pointer; display: flex; align-items: center; gap: 10px;
+    transition: 0.2s; color: #e4e4e7;
+}
+.user-item:hover { background: #27272a; }
+.user-item.active { background: #27272a; border-left: 4px solid #7226fa; }
+.online-dot { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; }

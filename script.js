@@ -3,7 +3,7 @@ let activeChat = 'general';
 let presenceChannel = null;
 let touchStartX = 0;
 
-// 1. PWA & BİLDİRİM KAYDI
+// 1. PWA & SERVICE WORKER KAYDI
 async function initPWA() {
     if ('serviceWorker' in navigator) {
         try {
@@ -25,7 +25,7 @@ function triggerNotification(data) {
     if (isTabHidden || isDifferentChat) {
         if (Notification.permission === "granted") {
             navigator.serviceWorker.ready.then(reg => {
-                // Başlık: Gönderen, Body: Sadece Mesaj
+                // Başlık: Gönderen, Body: Sadece Mesaj Metni
                 reg.showNotification(data.user, {
                     body: data.text || data.content,
                     icon: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png',
@@ -39,7 +39,7 @@ function triggerNotification(data) {
     }
 }
 
-// 3. MOBİL SWIPE & SIDEBAR
+// 3. MOBİL SWIPE & SIDEBAR KONTROLÜ
 document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
 document.addEventListener('touchend', e => {
     const diff = e.changedTouches[0].screenX - touchStartX;
@@ -50,30 +50,55 @@ document.addEventListener('touchend', e => {
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// 4. MESAJ GÖNDERME (ENTER DESTEKLİ)
+// 4. HIZLANDIRILMIŞ MESAJ GÖNDERME (Optimistic UI)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
     if (!val) return;
-    const msgData = { action: 'new', user: loggedInUser, text: val, target: activeChat, id: "msg-" + Date.now() };
+
+    const msgId = "msg-" + Date.now();
+    const msgData = { 
+        action: 'new', 
+        user: loggedInUser, 
+        text: val, 
+        target: activeChat, 
+        id: msgId 
+    };
+
+    // Mesajı kendi ekranına ANINDA bas (Onay bekleme)
+    renderMessage(msgData); 
     input.value = '';
-    await fetch('/api/send-message', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(msgData) });
+
+    try {
+        await fetch('/api/send-message', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(msgData) 
+        });
+    } catch (err) {
+        console.error("Mesaj gönderilemedi:", err);
+    }
 }
 
-// 5. PUSHER & ÖZEL MESAJLAŞMA
+// 5. PUSHER & ÖZEL MESAJLAŞMA SİSTEMİ
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
+        forceTLS: true,
+        activityTimeout: 15000,
         authEndpoint: `/api/pusher-auth?username=${encodeURIComponent(loggedInUser)}`
     });
+
     presenceChannel = pusher.subscribe('presence-chat');
 
     presenceChannel.bind('new-message', d => {
+        // Eğer mesaj zaten bizden gelmişse ve ekrandaysa tekrar basma
+        if (d.user === loggedInUser && document.getElementById(d.id)) return;
+
         const isGeneral = (d.target === 'general' && activeChat === 'general');
         const isForMe = (d.target === loggedInUser && activeChat === d.user);
-        const isFromMe = (d.user === loggedInUser);
 
-        if (isGeneral || isForMe || isFromMe) { renderMessage(d); }
+        if (isGeneral || isForMe) { renderMessage(d); }
         triggerNotification(d);
     });
 
@@ -94,26 +119,27 @@ function updateOnlineUI() {
         }
     });
     userList.innerHTML = html;
-    document.getElementById('online-counter').innerText = presenceChannel.members.count;
 }
 
 async function switchChat(chatId) {
     activeChat = chatId;
     document.getElementById('chat').innerHTML = '';
     document.getElementById('active-chat-title').innerText = chatId === 'general' ? 'Genel Mevzu' : `@${chatId}`;
+    
     const res = await fetch(`/api/get-messages?dm=${chatId}&user=${loggedInUser}`);
     const msgs = await res.json();
     msgs.forEach(m => renderMessage({ user: m.username, text: m.content, id: m.id }));
+    
     if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
     updateOnlineUI();
 }
 
-// 6. MESAJ GÖRÜNÜMÜ (İsim Kalabalığı Temizlendi)
+// 6. MESAJ GÖRÜNÜMÜ (Temiz & Hızlı)
 function renderMessage(data) {
     if (document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
     
-    // Kendi mesajımızda isim yazmaz, başkasında yazar.
+    // Kendi mesajımızda isim etiketi gösterilmez
     const nameLabel = isOwn ? '' : `<small style="display:block; font-size:10px; margin-bottom:2px; opacity:0.8; color:#a855f7;">${data.user}</small>`;
     
     const html = `
@@ -132,7 +158,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loggedInUser) {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('chat-screen').style.display = 'flex';
-        document.getElementById('msgInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+        
+        document.getElementById('msgInput').addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') sendMessage();
+        });
+
         initPWA();
         initPusher();
         switchChat('general');

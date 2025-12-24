@@ -15,7 +15,39 @@ async function initPWA() {
     }
 }
 
-// 2. TEMİZ BİLDİRİM TETİKLEYİCİ (İsim Tekrarı Giderildi)
+// 2. GİRİŞ VE ÇIKIŞ İŞLEMLERİ (BU KISIM EKLENDİ)
+async function handleLogin() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
+    
+    if (!u || !p) return alert("Boş bırakma!");
+
+    try {
+        const res = await fetch('/api/auth', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'login', username: u, password: p })
+        });
+        const data = await res.json();
+        
+        if (data.user) {
+            localStorage.setItem('barzoUser', data.user.username);
+            location.reload(); // Sayfayı yenileyerek chat ekranına geç
+        } else {
+            alert(data.error || "Giriş başarısız.");
+        }
+    } catch (err) {
+        console.error("Giriş Hatası:", err);
+        alert("Bağlantı sorunu oluştu.");
+    }
+}
+
+function logout() {
+    localStorage.removeItem('barzoUser');
+    location.reload(); // Sayfayı yenileyerek giriş ekranına dön
+}
+
+// 3. TEMİZ BİLDİRİM TETİKLEYİCİ
 function triggerNotification(data) {
     if (data.user === loggedInUser) return;
     
@@ -25,7 +57,6 @@ function triggerNotification(data) {
     if (isTabHidden || isDifferentChat) {
         if (Notification.permission === "granted") {
             navigator.serviceWorker.ready.then(reg => {
-                // Başlık: Gönderen, Body: Sadece Mesaj Metni
                 reg.showNotification(data.user, {
                     body: data.text || data.content,
                     icon: 'https://cdn-icons-png.flaticon.com/512/3601/3601571.png',
@@ -39,7 +70,7 @@ function triggerNotification(data) {
     }
 }
 
-// 3. MOBİL SWIPE & SIDEBAR KONTROLÜ
+// 4. MOBİL SWIPE & SIDEBAR
 document.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; }, {passive: true});
 document.addEventListener('touchend', e => {
     const diff = e.changedTouches[0].screenX - touchStartX;
@@ -50,7 +81,7 @@ document.addEventListener('touchend', e => {
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
-// 4. HIZLANDIRILMIŞ MESAJ GÖNDERME (Optimistic UI)
+// 5. MESAJ GÖNDERME (Optimistic UI)
 async function sendMessage() {
     const input = document.getElementById('msgInput');
     const val = input.value.trim();
@@ -65,8 +96,7 @@ async function sendMessage() {
         id: msgId 
     };
 
-    // Mesajı kendi ekranına ANINDA bas (Onay bekleme)
-    renderMessage(msgData); 
+    renderMessage(msgData); // Anında göster
     input.value = '';
 
     try {
@@ -75,12 +105,10 @@ async function sendMessage() {
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify(msgData) 
         });
-    } catch (err) {
-        console.error("Mesaj gönderilemedi:", err);
-    }
+    } catch (err) { console.error("Gönderilemedi:", err); }
 }
 
-// 5. PUSHER & ÖZEL MESAJLAŞMA SİSTEMİ
+// 6. PUSHER & AKIŞ
 function initPusher() {
     const pusher = new Pusher('7c829d72a0184ee33bb3', { 
         cluster: 'eu',
@@ -92,12 +120,9 @@ function initPusher() {
     presenceChannel = pusher.subscribe('presence-chat');
 
     presenceChannel.bind('new-message', d => {
-        // Eğer mesaj zaten bizden gelmişse ve ekrandaysa tekrar basma
         if (d.user === loggedInUser && document.getElementById(d.id)) return;
-
         const isGeneral = (d.target === 'general' && activeChat === 'general');
         const isForMe = (d.target === loggedInUser && activeChat === d.user);
-
         if (isGeneral || isForMe) { renderMessage(d); }
         triggerNotification(d);
     });
@@ -134,12 +159,9 @@ async function switchChat(chatId) {
     updateOnlineUI();
 }
 
-// 6. MESAJ GÖRÜNÜMÜ (Temiz & Hızlı)
 function renderMessage(data) {
     if (document.getElementById(data.id)) return;
     const isOwn = data.user === loggedInUser;
-    
-    // Kendi mesajımızda isim etiketi gösterilmez
     const nameLabel = isOwn ? '' : `<small style="display:block; font-size:10px; margin-bottom:2px; opacity:0.8; color:#a855f7;">${data.user}</small>`;
     
     const html = `
@@ -159,9 +181,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('chat-screen').style.display = 'flex';
         
-        document.getElementById('msgInput').addEventListener('keypress', (e) => { 
-            if (e.key === 'Enter') sendMessage();
-        });
+        const msgInput = document.getElementById('msgInput');
+        msgInput.setAttribute('autocomplete', 'one-time-code'); // Klavye simgelerini engeller
+
+        msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
         initPWA();
         initPusher();
